@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xoai"
+version = "1.0.0"
+description = "XOAI — Multi-Agent AI Platform"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "motor>=3.7",
+    "redis[hiredis]>=5.2",
+    "pyjwt>=2.9",
+    "bcrypt>=4.2",
+    "click>=8.1",
+    "google-genai>=1.14",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "email-validator>=2.0",
+    "python-multipart>=0.0.18",
+    "cryptography>=44.0",
+    "python-zalo-bot>=0.1.9",
+    "discord.py>=2.3",
+    "python-telegram-bot>=20.6",
+    "mcp>=1.0",
+    "openai>=1.50",
+    "duckduckgo-search>=6.0",
+    "python-docx>=1.1",
+    "edge-tts>=6.1",
+]
+
+[project.scripts]
+xoai = "xoai.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["xoai*"]

@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "profile": "Profile",
+    "settings": "Settings",
+    "server": "Server",
+    "workspace": "Workspace",
+    "chat": "Chat",
+    "support": "Support",
+    "logout": "Log Out"
+  },
+  "settings": {
+    "interface": {
+      "title": "Interface",
+      "theme": {
+        "title": "Theme",
+        "dark": "Dark",
+        "light": "Light"
+      },
+      "color": {
+        "title": "Brand Color",
+        "xoai": "XOAI",
+        "blue": "Blue",
+        "green": "Green",
+        "yellow": "Yellow",
+        "contrast": "Contrast"
+      },
+      "font": "Typography",
+      "scale": "UI Scale",
+      "language": "Language"
+    },
+    "intelligence": {
+      "title": "Intelligence",
+      "active_model": "Active Model",
+      "system_prompt": "System Prompt",
+      "api_keys": "API Keys",
+      "fetch_models": "Fetch Models"
+    },
+    "profile": {
+      "title": "Profile",
+      "name": "Display Name",
+      "email": "Email Address",
+      "bio": "Biography",
+      "avatar": "Avatar",
+      "change_image": "Change Image",
+      "password": "New Password"
+    },
+    "server": {
+      "title": "Server",
+      "user_mgmt": "User Management",
+      "infra": "Infrastructure",
+      "security": "Security",
+      "logs": "System Logs"
+    }
+  },
+  "chat": {
+    "chat_list": "Chats",
+    "new_chat": "New Conversation",
+    "default_title": "Discovery Session",
+    "welcome_title": "How can I help you today?",
+    "welcome_subtitle": "I am your multi-agent AI Operating System.",
+    "toggle_workspace": "Toggle Workspace",
+    "rename": "Rename",
+    "fork": "Fork (Full Copy)",
+    "trash": "Delete",
+    "input_placeholder": "Message XOAI...",
+    "streaming": "XOAI is thinking..."
+  },
+  "workspace": {
+    "files": "Workspace",
+    "upload": "Upload File",
+    "new_folder": "New Folder",
+    "refresh": "Refresh",
+    "empty": "No files in workspace"
+  },
+  "actions": {
+    "save": "Save Changes",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "close": "Close"
+  }
+}

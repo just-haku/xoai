@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "profile": "Cá nhân",
+    "settings": "Cài đặt",
+    "server": "Máy chủ",
+    "workspace": "Không gian làm việc",
+    "chat": "Trò chuyện",
+    "support": "Hỗ trợ",
+    "logout": "Đăng xuất"
+  },
+  "settings": {
+    "interface": {
+      "title": "Giao diện",
+      "theme": {
+        "title": "Chủ đề",
+        "dark": "Tối",
+        "light": "Sáng"
+      },
+      "color": {
+        "title": "Màu thương hiệu",
+        "xoai": "XOAI",
+        "blue": "Xanh dương",
+        "green": "Xanh lá",
+        "yellow": "Vàng",
+        "contrast": "Tương phản"
+      },
+      "font": "Kiểu chữ",
+      "scale": "Tỷ lệ UI",
+      "language": "Ngôn ngữ"
+    },
+    "intelligence": {
+      "title": "Trí tuệ",
+      "active_model": "Mô hình",
+      "system_prompt": "Lời nhắc hệ thống",
+      "api_keys": "Khóa API",
+      "fetch_models": "Tải danh sách mô hình"
+    },
+    "profile": {
+      "title": "Hồ sơ",
+      "name": "Tên hiển thị",
+      "email": "Địa chỉ Email",
+      "bio": "Giới thiệu",
+      "avatar": "Ảnh đại diện",
+      "change_image": "Đổi ảnh",
+      "password": "Mật khẩu mới"
+    },
+    "server": {
+      "title": "Quản trị",
+      "user_mgmt": "Quản lý người dùng",
+      "infra": "Hạ tầng",
+      "security": "Bảo mật",
+      "logs": "Nhật ký hệ thống"
+    }
+  },
+  "chat": {
+    "chat_list": "Danh sách chat",
+    "new_chat": "Cuộc trò chuyện mới",
+    "default_title": "Phiên khám phá",
+    "welcome_title": "Tôi có thể giúp gì cho bạn hôm nay?",
+    "welcome_subtitle": "Tôi là Hệ diều hành AI đa đại lý của bạn.",
+    "toggle_workspace": "Bật/tắt Không gian làm việc",
+    "rename": "Đổi tên",
+    "fork": "Sao chép (Nhân bản)",
+    "trash": "Xóa",
+    "input_placeholder": "Nhắn cho XOAI...",
+    "streaming": "XOAI đang suy nghĩ..."
+  },
+  "workspace": {
+    "files": "Tệp tin",
+    "upload": "Tải tệp lên",
+    "new_folder": "Thư mục mới",
+    "refresh": "Làm mới",
+    "empty": "Không có tệp nào"
+  },
+  "actions": {
+    "save": "Lưu thay đổi",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "close": "Đóng"
+  }
+}

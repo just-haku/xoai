@@ -1,0 +1,27 @@
+services:
+  xoai-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: xoai-backend
+    restart: unless-stopped
+    env_file: .env
+    network_mode: "host"
+    volumes:
+      - ${XOAI_STORAGE}:/app/storage
+    command: xoai start --port 8080
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  xoai-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: xoai-frontend
+    restart: unless-stopped
+    network_mode: "host"
+    depends_on:
+      - xoai-backend

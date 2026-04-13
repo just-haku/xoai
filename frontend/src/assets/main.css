@@ -1,0 +1,150 @@
+/* XOAI Design Tokens — Sleek Dark Mode with Mango Accents */
+
+:root {
+  /* Colors */
+  --bg-primary: #0a0a0c;
+  --bg-secondary: #141417;
+  --bg-tertiary: #1c1c21;
+  --bg-glass: rgba(20, 20, 23, 0.7);
+
+  --text-primary: #f0f0f5;
+  --text-secondary: #a0a0ab;
+  --text-disabled: #52525b;
+
+  --mango-primary: #ffaa00;
+  --mango-hover: #ffcc33;
+  --mango-glow: rgba(255, 170, 0, 0.3);
+
+  --danger: #ef4444;
+  --success: #22c55e;
+  --info: #3b82f6;
+
+  /* Theme Accents */
+  --accent-blue: #0088ff;
+  --accent-green: #00cc66;
+  --accent-yellow: #ffcc00;
+  --accent-xoai: linear-gradient(135deg, #00ff88, #ffaa00);
+
+  /* Borders & Glassmorphism */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --glass-blur: blur(12px);
+
+  /* Typography */
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+
+  /* Spacing (Scalable via UIStore) */
+  --base-spacing: 0.25rem;
+  --spacing-1: calc(var(--base-spacing) * 1 * var(--ui-scale, 1));
+  --spacing-2: calc(var(--base-spacing) * 2 * var(--ui-scale, 1));
+  --spacing-4: calc(var(--base-spacing) * 4 * var(--ui-scale, 1));
+  --spacing-6: calc(var(--base-spacing) * 6 * var(--ui-scale, 1));
+  --spacing-8: calc(var(--base-spacing) * 8 * var(--ui-scale, 1));
+  --spacing-12: calc(var(--base-spacing) * 12 * var(--ui-scale, 1));
+}
+
+/* Theme Color Matrix */
+[data-theme='dark'][data-color='contrast'] { --bg-primary: #000; --text-primary: #fff; --mango-primary: #fff; }
+[data-theme='light'][data-color='contrast'] { --bg-primary: #fff; --text-primary: #000; --mango-primary: #000; }
+
+[data-color='blue'] { --mango-primary: var(--accent-blue); }
+[data-color='green'] { --mango-primary: var(--accent-green); }
+[data-color='yellow'] { --mango-primary: var(--accent-yellow); }
+[data-color='xoai'] { --mango-primary: #ffaa00; }
+
+[data-theme='light'] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e9ecef;
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --text-primary: #1a1a1a;
+  --text-secondary: #4b5563;
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border-strong: rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* --- Animations --- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-bubble,
+.card,
+.chat-item {
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+.chat-item:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.chat-item:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-item:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+/* --- Refinements --- */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  transition: var(--transition-base);
+}
+
+.glass-panel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 122, 0, 0.2);
+}
+
+.mango-button {
+  background: linear-gradient(135deg, var(--mango-primary), #ff9a00);
+  box-shadow: 0 4px 15px rgba(255, 122, 0, 0.3);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.mango-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 122, 0, 0.4);
+}
+
+.mango-button:active {
+  transform: translateY(0);
+}
