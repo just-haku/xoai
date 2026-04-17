@@ -6,15 +6,14 @@ services:
     container_name: xoai-backend
     restart: unless-stopped
     env_file: .env
-    network_mode: "host"
+    ports:
+      - "8080:8080"
     volumes:
       - ${XOAI_STORAGE}:/app/storage
-    command: xoai start --port 8080
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    command: xoai start --port 8080 --host 0.0.0.0
+    depends_on:
+      - xoai-mongo
+      - xoai-redis
 
   xoai-frontend:
     build:
@@ -22,6 +21,22 @@ services:
       dockerfile: Dockerfile
     container_name: xoai-frontend
     restart: unless-stopped
-    network_mode: "host"
+    ports:
+      - "3080:80"
     depends_on:
       - xoai-backend
+
+  xoai-mongo:
+    image: mongo:7-jammy
+    container_name: xoai-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  xoai-redis:
+    image: redis:7-alpine
+    container_name: xoai-redis
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

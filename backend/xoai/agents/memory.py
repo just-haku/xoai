@@ -12,8 +12,17 @@ async def get_conversation_messages(conversation_id: str, limit: int = 50) -> li
     cursor = db.messages.find(
         {"conversation_id": conversation_id}
     ).sort("created_at", -1).limit(limit)
-    messages = await cursor.to_list(limit)
-    messages.reverse()
+    docs = await cursor.to_list(limit)
+    docs.reverse()
+    messages = []
+    for doc in docs:
+        msg = {
+            "role": doc["role"],
+            "content": doc.get("content", ""),
+        }
+        if doc.get("tool_calls"):
+            msg["tool_calls"] = doc["tool_calls"]
+        messages.append(msg)
     return messages
 
 

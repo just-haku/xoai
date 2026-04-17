@@ -8,13 +8,57 @@
     "support": "Support",
     "logout": "Log Out"
   },
+  "auth": {
+    "login": {
+      "title": "System Access",
+      "identifier": "Username or Email",
+      "password": "Password",
+      "submit": "Login",
+      "loading": "Authenticating...",
+      "no_account": "Don't have an account?",
+      "register_link": "Create one"
+    },
+    "register": {
+      "title": "Join the Platform",
+      "approval_tip": "Your account will require admin approval after registration.",
+      "name": "Full Name",
+      "email": "Email",
+      "verif": {
+        "send": "Send Verification Code",
+        "resend": "Re-send in {s}s",
+        "resend_init": "Re-send Code",
+        "code": "Verification Code",
+        "error": "Incorrect code",
+        "success": "Email Verified Successfully ✓"
+      },
+      "password": "Password",
+      "submit": "Register",
+      "loading": "Creating Account...",
+      "have_account": "Already have an account?",
+      "login_link": "Sign in"
+    }
+  },
+  "landing": {
+    "nav": {
+      "signin": "Sign In"
+    },
+    "hero": {
+      "title_main": "Unified",
+      "title_accent": "Intelligence",
+      "subtitle": "The Advanced multi-agent operating system for the next generation of technical reasoning and absolute workflow isolation.",
+      "cta": "Launch Platform"
+    },
+    "footer": {
+      "copy": "2026 XOAI Platform. Advanced Agentic Systems."
+    }
+  },
   "settings": {
     "interface": {
       "title": "Interface",
       "theme": {
         "title": "Theme",
-        "dark": "Dark",
-        "light": "Light"
+        "dark": "Dark Professional",
+        "light": "Light Aesthetic"
       },
       "color": {
         "title": "Brand Color",
@@ -25,14 +69,18 @@
         "contrast": "Contrast"
       },
       "font": "Typography",
-      "scale": "UI Scale",
-      "language": "Language"
+      "scale": "Interface Scaling",
+      "language": "Language",
+      "pastel": "Pastel Filter",
+      "pastel_desc": "Soften UI colors for easier reading",
+      "reset_layout": "Reset Windows Layout"
     },
     "intelligence": {
-      "title": "Intelligence",
+      "title": "Identity",
+      "provider": "Primary AI Provider",
       "active_model": "Active Model",
       "system_prompt": "System Prompt",
-      "api_keys": "API Keys",
+      "api_keys": "API Key",
       "fetch_models": "Fetch Models"
     },
     "profile": {
@@ -40,16 +88,363 @@
       "name": "Display Name",
       "email": "Email Address",
       "bio": "Biography",
+      "bio_placeholder": "Tell XOAI about yourself...",
       "avatar": "Avatar",
       "change_image": "Change Image",
       "password": "New Password"
     },
-    "server": {
-      "title": "Server",
-      "user_mgmt": "User Management",
-      "infra": "Infrastructure",
-      "security": "Security",
-      "logs": "System Logs"
+    "security": {
+      "title": "Security",
+      "old_pass": "Old Password",
+      "new_pass": "New Password",
+      "confirm_pass": "Confirm Password"
+    },
+    "integrations": {
+      "title": "Integrations",
+      "discord": "Discord Bot Token",
+      "telegram": "Telegram Bot Token",
+      "zalo": "Zalo Bot Token",
+      "tip": "Entering a token will automatically host and route incoming messages on that platform to your Omni-Channel Work Chat."
+    },
+    "common": {
+      "save": "Save Changes",
+      "synchronized": "Settings synchronized with server."
+    },
+    "channel": {
+      "title": "Connected Channels",
+      "discord": "Discord",
+      "telegram": "Telegram",
+      "zalo": "Zalo"
+    },
+    "agent": {
+      "title": "Agent Personality",
+      "desc": "Configure the underlying intelligence model for your personal agent.",
+      "provider": "Model Provider",
+      "apiKey": "API Key",
+      "save": "Update Agent"
+    }
+  },
+  "admin": {
+    "title": "MangOS Central Command",
+    "version": "v4.1.1-ULTIMATE-LEXICON",
+    "status_online": "System Online",
+    "btn_return": "Return to Chat",
+    "tabs": {
+      "godMode": "God Mode",
+      "triad": "Triad Control",
+      "users": "User Management",
+      "infra": "Infrastructure"
+    },
+    "godMode": {
+      "title": "Active User Sessions (God Mode)",
+      "desc": "Jump into user desktops, inspect their workspaces, and audit private chats.",
+      "actions": {
+        "switch": "Switch Context",
+        "workspace": "Read/Write Workspace",
+        "audit": "Read-Only Audit"
+      }
+    },
+    "triad": {
+      "title": "Agent & Triad Config",
+      "bridge": {
+        "label": "Agent 0 Gatekeeping (Bridge Mode)",
+        "desc": "Bypass A0 for normal users. Only enable for flagged/vip users."
+      },
+      "agents": {
+        "a0": "Agent 0 (Supervisor)",
+        "a1": "Agent 1 (Architect)",
+        "a2": "Agent 2 (Executor)"
+      },
+      "model_override": "Model Override",
+      "apply": "Apply AI Configurations",
+      "soul": {
+        "title": "Hot-Editing OS Soul",
+        "desc": "Live edit the markdown instruction files in <code>/app/prompts/*.md</code>",
+        "save": "Hot Reload Prompt"
+      }
+    },
+    "users": {
+      "stats": {
+        "total": "Total Users",
+        "pending": "Pending",
+        "tickets": "Support Tickets"
+      },
+      "title": "User Approval & Quotas",
+      "table": {
+        "user": "User",
+        "status": "Status",
+        "storage": "Storage",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit_quota": "Edit Quotas",
+        "approve": "Approve",
+        "suspend": "Suspend"
+      }
+    },
+    "infra": {
+      "title": "Platform Infrastructure",
+      "path": {
+        "label": "Admin Workspace Mount Path"
+      },
+      "mcp": {
+        "title": "Global MCP Servers",
+        "desc": "Install plugins directly into the Triad's context.",
+        "install": "Install"
+      },
+      "cli": {
+        "title": "CLI Superpowers",
+        "desc": "Raw database execution commands."
+      },
+      "notifications": {
+        "config_updated": "System configuration updated successfully.",
+        "config_failed": "Failed to update system config: {error}"
+      }
+    },
+    "dashboard": {
+      "back_to_workspace": "Back to Workspace",
+      "system_online": "System Online",
+      "breadcrumb": "Governance",
+      "tabs": {
+        "users": {
+          "label": "Citizenship",
+          "desc": "Manage users, permissions, and storage quotas."
+        },
+        "agents": {
+          "label": "Intelligence",
+          "desc": "Configure global AI providers for A0, A1, and A2."
+        },
+        "runtime": {
+          "label": "Runtime",
+          "desc": "Inspect query topology runs, experience lessons, and prompt evolution."
+        },
+        "mcp": {
+          "label": "MCP",
+          "desc": "Register and refresh external MCP servers and tools."
+        },
+        "infra": {
+          "label": "Core / Infra",
+          "desc": "System backbone, SMTP, and filesystem rules."
+        },
+        "godMode": {
+          "label": "Oversight",
+          "desc": "Real-time audit and system telemetry."
+        }
+      },
+      "common": {
+        "enabled": "ENABLED",
+        "disabled": "DISABLED",
+        "refresh": "Refresh"
+      },
+      "users": {
+        "stats": {
+          "total_citizens": "Total Citizens",
+          "pending_approval": "Pending Approval",
+          "active_workspaces": "Active Workspaces"
+        },
+        "table": {
+          "identifier": "Identifier",
+          "status": "Status",
+          "quota_storage": "Quota / Storage",
+          "governance": "Governance"
+        },
+        "actions": {
+          "quota": "Quota",
+          "reset_password": "Reset Password",
+          "approve": "Approve",
+          "suspend": "Suspend"
+        },
+        "prompts": {
+          "modify_quota": "Modify Quota for {user}",
+          "enter_quota": "Enter new limit in Gigabytes (GB):",
+          "reset_password": "Reset Password for {user}",
+          "enter_new_password": "Enter new password for this user:",
+          "revoke_access": "Revoke Access",
+          "confirm_suspend": "Are you sure you want to suspend {user}?"
+        }
+      },
+      "agents": {
+        "provider": "Provider",
+        "api_key": "API Key / Secret",
+        "model_id": "Model ID",
+        "fetch_models": "Fetch models",
+        "fetching": "Fetching...",
+        "select_model": "Select model...",
+        "model_placeholder": "gpt-4o, claude-3-5-sonnet",
+        "base_url": "Base URL (Optional)",
+        "base_url_placeholder": "https://api.openai.com/v1",
+        "save": "Save Global Intelligence Hierarchy",
+        "providers": {
+          "gemini": "Google Gemini",
+          "openai": "OpenAI",
+          "anthropic": "Anthropic",
+          "ollama": "Ollama (Local)",
+          "custom": "Custom Endpoint"
+        }
+      },
+      "infra": {
+        "smtp_title": "Communication (SMTP)",
+        "hostname": "Hostname",
+        "hostname_placeholder": "smtp.gmail.com",
+        "port": "Port",
+        "port_placeholder": "587",
+        "username": "Username",
+        "username_placeholder": "noreply@xoai.io",
+        "secret": "Secret",
+        "workspace_title": "Workspace & Storage",
+        "default_local_path": "Default Local Path",
+        "default_local_path_placeholder": "/home/user/xoai-storage",
+        "bridge_mode": "Agent 0 Bridge Mode",
+        "bridge_mode_desc": "Enables inter-agent routing via Agent 0.",
+        "save": "Update Infrastructure"
+      },
+      "runtime": {
+        "stats": {
+          "query_runs": "Recent Query Runs",
+          "insights": "Experience Insights",
+          "prompt_candidates": "Prompt Candidates"
+        },
+        "query_runs_title": "Query Topology Runs",
+        "query_runs_desc": "Recent executions generated by the new per-query orchestrator.",
+        "detail_title": "Query Run Detail",
+        "no_query_runs": "No query runs recorded yet.",
+        "insights_title": "Experience Insights",
+        "insights_desc": "Consolidated success and failure patterns by profile.",
+        "recommended": "Recommended",
+        "failure_signals": "Failure Signals",
+        "no_insights": "No insights consolidated yet.",
+        "lessons_title": "Experience Lessons",
+        "lessons_desc": "Curated lessons that feed profile insights and future consolidation.",
+        "consolidations_title": "Consolidation History",
+        "consolidations_desc": "Audit log of automatic and manual lesson consolidation actions.",
+        "candidates_title": "Prompt Evolution Candidates",
+        "candidates_desc": "Role-aware prompt variants proposed from failed runs.",
+        "evaluate": "Evaluate",
+        "benchmark": "Benchmark",
+        "promote": "Promote",
+        "reject": "Reject",
+        "inspect": "Inspect",
+        "keep": "Keep",
+        "add": "Add",
+        "prune": "Prune",
+        "merge": "Merge",
+        "merge_lesson_title": "Merge Lesson",
+        "merge_lesson_prompt": "Enter the target lesson ID to merge into:",
+        "final_output": "Final Output",
+        "failure_summary": "Failure Summary",
+        "trace_map_title": "DAG Trace Map",
+        "trace_map_desc": "Structured node timeline with parallel branches, verifiers, retries, and reason codes.",
+        "trace_nodes": "nodes",
+        "branch_primary": "Primary",
+        "branch_parallel": "Parallel",
+        "branch_verifier": "Verifier",
+        "branch_retry": "Retry",
+        "parallel_group": "Parallel",
+        "verifier_for": "Verifier for",
+        "retry_of": "Retry of",
+        "reason_code": "Reason",
+        "output_chunks": "Output Chunks",
+        "prompt_versions_title": "Prompt Versions",
+        "prompt_versions_desc": "Version history, diff, and rollback for promoted prompts.",
+        "rollback": "Rollback",
+        "prompt_content": "Prompt Content",
+        "prompt_diff": "Prompt Diff",
+        "no_candidates": "No prompt candidates yet.",
+        "no_lessons": "No experience lessons yet.",
+        "no_consolidations": "No consolidation actions recorded yet.",
+        "no_prompt_versions": "No prompt versions yet."
+      },
+      "roles": {
+        "admin": "Admin",
+        "user": "User"
+      },
+      "mcp": {
+        "register_title": "Register MCP Server",
+        "edit_title": "Edit MCP Server",
+        "register_desc": "Define transport, scope, and optional environment variables for external tools.",
+        "name": "Name",
+        "name_placeholder": "filesystem-lsp",
+        "transport": "Transport",
+        "scope": "Scope",
+        "scope_global": "Global",
+        "scope_user": "Per User",
+        "enabled_label": "Enabled",
+        "allowed_roles": "Allowed Roles",
+        "user_scope": "User Scope",
+        "select_user": "Select user...",
+        "command": "Command",
+        "command_placeholder": "npx",
+        "args": "Args (space separated)",
+        "args_placeholder": "-y @modelcontextprotocol/server-filesystem /workspace",
+        "env_json": "Env JSON (optional)",
+        "env_placeholder": "{\"NODE_ENV\":\"production\"}",
+        "add": "Add MCP Server",
+        "update": "Update MCP Server",
+        "connected_title": "Connected MCP Servers",
+        "server_meta": "Transport: {transport} · Scope: {scope} · User: {user} · Tools: {tools}",
+        "server_health": "Heartbeat: {heartbeat} · Reconnects: {reconnects} · Roles: {roles}",
+        "edit": "Edit",
+        "no_servers": "No MCP servers registered.",
+        "delete_title": "Delete MCP Server",
+        "delete_confirm": "Delete MCP server '{name}'?"
+      },
+      "godmode": {
+        "title": "Supreme Oversight Active",
+        "desc": "You are viewing real-time user telemetry and workspace states. Use discernment.",
+        "last_act": "Last Act",
+        "active_ws": "Active WS",
+        "mirror": "Mirror",
+        "logs": "Logs",
+        "mirror_desktop": "Mirror Desktop",
+        "audit_logs": "Audit Logs"
+      },
+      "notifications": {
+        "infra_saved": "Infrastructure configuration synchronized",
+        "sync_failed": "Sync failed: {error}",
+        "agent_saved": "Global intelligence hierarchy updated",
+        "agent_failed": "Agent update failed: {error}",
+        "api_key_required": "API Key required to fetch models",
+        "models_fetched": "Fetched {count} models for {agent}",
+        "no_models": "No models returned from provider",
+        "fetch_failed": "Fetch failed: {error}",
+        "invalid_number": "Invalid number",
+        "quota_updated": "Quota for {user} recalibrated to {limit} GB",
+        "quota_failed": "Recalibration failed: {error}",
+        "password_updated": "Password updated for {user}",
+        "reset_failed": "Reset failed: {error}",
+        "user_approved": "{user} has been granted access",
+        "grant_failed": "Grant failed: {error}",
+        "user_suspended": "Access revoked for {user}",
+        "revoke_failed": "Revoke failed: {error}",
+        "action_initiated": "{action} initiated for {target}",
+        "runtime_load_failed": "Failed to load runtime telemetry: {error}",
+        "mcp_load_failed": "Failed to load MCP servers: {error}",
+        "mcp_name_command_required": "MCP name and command are required",
+        "mcp_user_required": "Select a user for per-user MCP scope",
+        "mcp_updated": "MCP server '{name}' updated",
+        "mcp_created": "MCP server '{name}' registered",
+        "mcp_save_failed": "Failed to save MCP server: {error}",
+        "mcp_refreshed": "Refreshed MCP server '{name}'",
+        "mcp_refresh_failed": "MCP refresh failed: {error}",
+        "mcp_deleted": "Deleted MCP server '{name}'",
+        "mcp_delete_failed": "Failed to delete MCP server: {error}",
+        "candidate_evaluated": "Prompt candidate for {role} evaluated",
+        "candidate_evaluate_failed": "Prompt candidate evaluation failed: {error}",
+        "candidate_benchmarked": "Prompt candidate for {role} benchmarked",
+        "candidate_benchmark_failed": "Prompt candidate benchmark failed: {error}",
+        "candidate_promoted": "Prompt candidate for {role} promoted",
+        "candidate_promote_failed": "Prompt candidate promotion failed: {error}",
+        "candidate_rejected": "Prompt candidate for {role} rejected",
+        "candidate_reject_failed": "Prompt candidate rejection failed: {error}",
+        "lesson_action": "Lesson marked as {action}",
+        "lesson_action_failed": "Failed to {action} lesson: {error}",
+        "lesson_merged": "Lesson merged successfully",
+        "lesson_merge_failed": "Failed to merge lesson: {error}",
+        "query_run_failed": "Failed to load query run detail: {error}",
+        "prompt_version_failed": "Failed to load prompt version: {error}",
+        "prompt_version_rolled_back": "Rolled back {role} to {version}",
+        "prompt_version_rollback_failed": "Prompt rollback failed: {error}"
+      }
     }
   },
   "chat": {
@@ -63,19 +458,180 @@
     "fork": "Fork (Full Copy)",
     "trash": "Delete",
     "input_placeholder": "Message XOAI...",
-    "streaming": "XOAI is thinking..."
+    "streaming": "XOAI is thinking...",
+    "search": "Search sessions...",
+    "locked": "Locked",
+    "model_none": "None Select",
+    "identity_required": "Identity configuration required (API Key).",
+    "missing_key": "Missing API Key. Please configure Identity settings.",
+    "agent_using": "{agent} is now using {model} via {provider}.",
+    "loading_models": "Fetching models...",
+    "view": {
+      "work_chat_title": "Chat - Work Chat",
+      "new_chat_title": "Chat - New Chat",
+      "chat_title": "Chat - {title}",
+      "omni_channel": "Omni-Channel",
+      "reset_layout": "Reset Layout",
+      "maximize_all": "Maximize All",
+      "minimize_all": "Minimize All",
+      "workspace_quota": "Workspace - Quota: {quota}",
+      "unlimited": "Unlimited",
+      "suggestions": {
+        "architect": {
+          "text": "Architect a new microservice",
+          "sub": "Design a scalable Node.js backend with Redis"
+        },
+        "ui": {
+          "text": "Build a premium UI component",
+          "sub": "Create a glassmorphism dashboard in Vue 3"
+        },
+        "patterns": {
+          "text": "Explain project patterns",
+          "sub": "Analyze the SOUL architecture of this workspace"
+        },
+        "refactor": {
+          "text": "Refactor legacy logic",
+          "sub": "Modernize code for better performance"
+        }
+      },
+      "notifications": {
+        "work_chat_assigned": "Work Chat assigned successfully.",
+        "work_chat_assign_failed": "Failed to save Work Chat.",
+        "work_chat_unlinked": "Work Chat unlinked."
+      }
+    }
   },
   "workspace": {
     "files": "Workspace",
     "upload": "Upload File",
     "new_folder": "New Folder",
     "refresh": "Refresh",
-    "empty": "No files in workspace"
+    "empty": "No files in workspace",
+    "title": "Workspace",
+    "drop_tip": "Drop files to upload",
+    "context": {
+      "open": "Open",
+      "download": "Download",
+      "share": "Share",
+      "rename": "Rename",
+      "trash": "Trash",
+      "upload_file": "Upload File",
+      "upload_folder": "Upload Folder",
+      "new_folder": "New Folder"
+    },
+    "preview": {
+      "not_available": "Preview not available for this file type."
+    },
+    "chat_list": "Chats",
+    "discovery_session": "Discovery Session",
+    "system_workspace": "System Workspace",
+    "hide_chat": "Hide Chat",
+    "show_chat": "Show Chat",
+    "personal_assistant": "Personal Assistant",
+    "type_to_chat": "Type to chat..."
+  },
+  "userSettings": {
+    "back_to_workspace": "Back to Workspace",
+    "identity": "Identity",
+    "breadcrumb": "Settings",
+    "change": "Change",
+    "get_code": "Get Code",
+    "enter_code": "Enter 6-digit code",
+    "verify_update": "Verify & Update",
+    "save_profile": "Save Profile Changes",
+    "ui_scaling": "UI Scaling",
+    "ui_scaling_desc": "Adjust the density of the entire interface.",
+    "theme_palette": "Theme Palette",
+    "theme_palette_desc": "Choose your primary accent color.",
+    "aesthetics": "Aesthetics",
+    "aesthetics_desc": "Softens overall saturation and vibrancy.",
+    "on": "ON",
+    "off": "OFF",
+    "language_desc": "Select your interface language.",
+    "update_security": "Update Security Keys",
+    "hide": "Hide",
+    "show": "Show",
+    "model_override": "Model Override (Optional)",
+    "fetching": "Fetching...",
+    "select_model": "Select model...",
+    "model_placeholder": "gpt-4o / gemini-1.5-pro",
+    "update_agent": "Update Agent Intelligence",
+    "connected": "Connected",
+    "ready_to_link": "Ready to link",
+    "revoke_access": "Revoke Access",
+    "configure": "Configure",
+    "integration_key": "Enter Integration Key",
+    "finish_linking": "Finish Linking",
+    "languages": {
+      "en": "English (US)",
+      "vi": "Vietnamese (VN)"
+    },
+    "providers": {
+      "gemini": "Google Gemini",
+      "openai": "OpenAI / Compatible",
+      "anthropic": "Anthropic Claude"
+    },
+    "colors": {
+      "red": "Red",
+      "pink": "Pink",
+      "blue": "Blue",
+      "yellow": "Yellow",
+      "green": "Green",
+      "contrast": "Contrast"
+    },
+    "tabs": {
+      "profile": { "label": "Profile", "desc": "Manage your public identity." },
+      "interface": { "label": "Interface", "desc": "Visual appearance and scale settings." },
+      "security": { "label": "Security", "desc": "Access keys and password protection." },
+      "agent": { "label": "Agent", "desc": "Personal AI brain configuration." },
+      "channel": { "label": "Channel", "desc": "External bridge connections." }
+    },
+    "notifications": {
+      "avatar_updated": "Avatar updated successfully",
+      "avatar_failed": "Avatar upload failed",
+      "code_sent": "Verification code sent to {email}",
+      "code_failed": "Failed to send code: {error}",
+      "email_updated": "Email updated successfully",
+      "verification_failed": "Verification failed: {error}",
+      "profile_updated": "Profile updated successfully",
+      "update_failed": "Update failed: {error}",
+      "password_mismatch": "Passwords do not match",
+      "password_updated": "Password changed successfully",
+      "password_failed": "Password update failed: {error}",
+      "agent_updated": "Agent intelligence updated",
+      "agent_failed": "Failed to update agent: {error}",
+      "api_key_required": "API Key required to fetch models",
+      "models_fetched": "Fetched {count} models",
+      "no_models": "No models returned from provider",
+      "fetch_failed": "Fetch failed: {error}",
+      "channel_connected": "{name} connected",
+      "channel_failed": "Failed to link {name}"
+    }
   },
   "actions": {
     "save": "Save Changes",
     "cancel": "Cancel",
     "delete": "Delete",
-    "close": "Close"
+    "close": "Close",
+    "sending": "Sending...",
+    "exit": "Exit"
+  },
+  "support": {
+    "title": "Contact Support",
+    "description": "Need assistance? Select a topic and describe your request. Our support agents will handle it promptly.",
+    "type": "Support Type",
+    "types": {
+      "feature_request": "Feature Request",
+      "feature_error": "Feature Error",
+      "security_error": "Security Error",
+      "others": "Others"
+    },
+    "subject": "Subject",
+    "subject_placeholder": "Brief summary...",
+    "message": "Message",
+    "placeholder": "Tell us what's on your mind...",
+    "send": "Send",
+    "success": "Support ticket sent successfully!",
+    "error": "Support system is temporarily unavailable. Please try again later."
   }
 }

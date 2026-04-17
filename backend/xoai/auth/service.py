@@ -1,24 +1,25 @@
 """Auth service: password hashing, JWT tokens, email verification, encryption."""
 
 import json
+import base64
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
+import aiosmtplib
+from email.message import EmailMessage
 from cryptography.fernet import Fernet
 
 from xoai.config import settings
 
 # Derive a Fernet key from SECRET_KEY (pad/hash to 32 bytes, base64)
-import base64
-import hashlib
-
 _fernet_key = base64.urlsafe_b64encode(hashlib.sha256(settings.secret_key.encode()).digest())
 _fernet = Fernet(_fernet_key)
 
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
-REFRESH_TOKEN_EXPIRE_DAYS = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 365 * 100  # 100 years
+REFRESH_TOKEN_EXPIRE_DAYS = 365 * 100  # 100 years
 
 
 def hash_password(password: str) -> str:
@@ -77,3 +78,45 @@ def decrypt_value(encrypted: str) -> str:
 def decrypt_json(encrypted: str) -> dict:
     """Decrypt and parse JSON."""
     return json.loads(decrypt_value(encrypted))
+
+
+async def send_verification_email(to_email: str, code: str):
+    """Send verification email using admin SMTP settings and Admin's profile email."""
+    from xoai.db.mongo import db
+    
+    # 1. Fetch SMTP settings
+    smtp_setting = await db.settings.find_one({"key": "smtp"})
+    if not smtp_setting:
+        return False
+    
+    # 2. Fetch Admin's email (Sender)
+    # The user said: "Only when admin adds his email, use his email for smtp verification code sending!!"
+    admin_user = await db.users.find_one({"role": "admin"})
+    admin_email = admin_user.get("email") if admin_user else None
+    
+    if not admin_email:
+        print("SMTP: Admin email not configured in profile. Skipping send.")
+        return False
+    
+    try:
+        settings_data = decrypt_json(smtp_setting["value_encrypted"])
+        
+        msg = EmailMessage()
+        msg["Subject"] = "XOAI Verification Code"
+        msg["From"] = admin_email
+        msg["To"] = to_email
+        
+        msg.set_content(f"Your XOAI verification code is: {code}\n\nThis code will expire in 10 minutes.")
+        
+        await aiosmtplib.send(
+            msg,
+            hostname=settings_data.get("host", "smtp.gmail.com"),
+            port=int(settings_data.get("port", 587)),
+            username=settings_data.get("sender_email"), # Auth username (may be different from From)
+            password=settings_data.get("password"),
+            start_tls=True
+        )
+        return True
+    except Exception as e:
+        print(f"SMTP Error: {e}")
+        return False

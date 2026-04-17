@@ -49,23 +49,66 @@
 }
 
 /* Theme Color Matrix */
-[data-theme='dark'][data-color='contrast'] { --bg-primary: #000; --text-primary: #fff; --mango-primary: #fff; }
-[data-theme='light'][data-color='contrast'] { --bg-primary: #fff; --text-primary: #000; --mango-primary: #000; }
+[data-color='red'] { --mango-primary: #ff4d4d; --mango-glow: rgba(255, 77, 77, 0.4); }
+[data-color='pink'] { --mango-primary: #ff69b4; --mango-glow: rgba(255, 105, 180, 0.4); }
+[data-color='blue'] { --mango-primary: #0088ff; --mango-glow: rgba(0, 136, 255, 0.4); }
+[data-color='green'] { --mango-primary: #00cc66; --mango-glow: rgba(0, 204, 102, 0.6); }
+[data-color='yellow'] { --mango-primary: #ffcc00; --mango-glow: rgba(255, 204, 0, 0.4); }
+[data-color='contrast'][data-theme='dark'] { --mango-primary: #ffffff; --mango-glow: rgba(255,255,255,0.2); }
+[data-color='contrast'][data-theme='light'] { --mango-primary: #000000; --mango-glow: rgba(0,0,0,0.1); }
 
-[data-color='blue'] { --mango-primary: var(--accent-blue); }
-[data-color='green'] { --mango-primary: var(--accent-green); }
-[data-color='yellow'] { --mango-primary: var(--accent-yellow); }
-[data-color='xoai'] { --mango-primary: #ffaa00; }
+[data-color='xoai'] { 
+  --mango-primary: #00ff88; 
+  --mango-glow: rgba(0, 255, 136, 0.4); 
+  --mango-gradient: linear-gradient(135deg, #00ff88, #fbff00); 
+}
+
+/* Pastel Filter - Softens colors when active */
+[data-pastel='true'] {
+  --mango-primary: color-mix(in srgb, var(--mango-primary), white 40%);
+  filter: saturate(0.8) brightness(1.05);
+}
+[data-theme='dark'][data-pastel='true'] {
+  --mango-primary: color-mix(in srgb, var(--mango-primary), white 25%);
+  filter: saturate(0.85) brightness(1.1);
+}
+
+/* Premium Select / Dropdown Style */
+select, .mango-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  padding: 10px 16px;
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aaaaaa'%3E%3Cpath d='M7,10L12,15L17,10H7Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  transition: all 0.2s;
+}
+
+select:hover, .mango-select:hover {
+  border-color: var(--mango-primary);
+  background-color: var(--glass-hover);
+}
 
 [data-theme='light'] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --bg-tertiary: #e9ecef;
-  --bg-glass: rgba(255, 255, 255, 0.7);
-  --text-primary: #1a1a1a;
-  --text-secondary: #4b5563;
-  --border-subtle: rgba(0, 0, 0, 0.05);
-  --border-strong: rgba(0, 0, 0, 0.1);
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.12);
+  --glass-hover: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme='dark'] {
+  --glass-hover: rgba(255, 255, 255, 0.05);
 }
 
 * {
@@ -82,6 +125,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
   overflow-x: hidden;
+}
+
+body.dragging * { 
+  user-select: none !important; 
 }
 
 /* --- Animations --- */
@@ -125,19 +172,54 @@ body {
 }
 
 .glass-panel:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 122, 0, 0.2);
+  background: var(--glass-hover);
+  border-color: var(--mango-primary);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
+
+[data-theme='light'] .glass-panel:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--mango-primary);
+}
+
 
 .mango-button {
   background: linear-gradient(135deg, var(--mango-primary), #ff9a00);
   box-shadow: 0 4px 15px rgba(255, 122, 0, 0.3);
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: calc(0.5rem * var(--ui-scale, 1)) calc(1rem * var(--ui-scale, 1));
+  border-radius: calc(8px * var(--ui-scale, 1));
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition-fast);
+}
+
+.btn-text-action {
+  background: transparent;
+  border: none;
+  color: var(--mango-primary);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  opacity: 0.8;
+}
+
+.btn-text-action:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(var(--mango-primary-rgb, 255, 170, 0), 0.1);
+}
+
+.btn-text-action:disabled {
+  opacity: 0.4;
+  cursor: wait;
+}
+
+.shadow-premium {
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
 }
 
 .mango-button:hover {
@@ -147,4 +229,109 @@ body {
 
 .mango-button:active {
   transform: translateY(0);
+}/* Shared Auth Styles (Login/Register) */
+.login-page, .register-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--spacing-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  text-align: center;
+}
+
+.brand {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.mango-text {
+  color: var(--mango-primary);
+}
+
+[data-color='xoai'] .mango-text {
+  background: var(--mango-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+}
+
+[data-color='green'] .mango-text {
+  text-shadow: 0 0 15px var(--accent-green);
+}
+
+.input-group {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin-bottom: var(--spacing-4);
+}
+
+label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+input {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  padding: calc(0.75rem * var(--ui-scale, 1));
+  border-radius: calc(8px * var(--ui-scale, 1));
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+*:focus {
+  outline: none !important;
+}
+
+.mango-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--mango-glow), 0 6px 20px rgba(255, 122, 0, 0.4);
+}
+
+input:focus {
+  border-color: var(--mango-primary);
+  box-shadow: 0 0 0 2px var(--mango-glow);
+}
+
+.mango-button {
+  width: 100%;
+  margin-top: var(--spacing-2);
+}
+
+.auth-footer {
+  margin-top: var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--spacing-4);
+}
+
+.auth-footer a {
+  color: var(--mango-primary);
+  text-decoration: none;
+  font-weight: 700;
+  margin-left: var(--spacing-1);
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+.status-tip {
+  font-size: var(--font-size-sm);
+  color: var(--mango-primary);
+  margin-bottom: var(--spacing-2);
 }

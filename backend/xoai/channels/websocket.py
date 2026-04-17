@@ -30,16 +30,37 @@ async def chat_endpoint(websocket: WebSocket):
         
         logger.info(f"WebSocket connected: {user['id']}")
 
+        active_agent = None
+
         while True:
             msg_data = await websocket.receive_json()
+            m_type = msg_data.get("type")
+            
+            if m_type == "input_response":
+                if active_agent and hasattr(active_agent, "input_event"):
+                    active_agent.last_input_response = msg_data.get("response") # 'allow' or 'deny'
+                    active_agent.input_event.set()
+                continue
+
             user_text = msg_data.get("text")
             
             # Forward to supervisor
-            # Note: process_message might return a stream generator
+            # Note: We need a way to get the agent instance back or manage it here.
+            # Simplified for Phase 4: process_message returns a stream.
+            # We'll need a way for the stream to hold the agent reference.
+            
             response_stream = await process_message(user, user_text, conversation_id, channel="web")
+            
+            # In a more robust system, we would track the generator's internal agent.
+            # For now, we'll use a globally accessible or session-bound 'active_agent' 
+            # if we can extract it from the stream or supervisor.
             
             if hasattr(response_stream, "__aiter__"):
                 async for chunk in response_stream:
+                    # Capture the agent instance if yielded (new protocol)
+                    if isinstance(chunk, dict) and chunk.get("type") == "agent_instance":
+                        active_agent = chunk["instance"]
+                        continue
                     await websocket.send_json(chunk)
             else:
                 await websocket.send_json({"type": "content", "content": str(response_stream)})

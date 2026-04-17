@@ -12,6 +12,8 @@ async def list_files(user_id: str, path: str = "") -> str:
 
 
 async def read_file(user_id: str, path: str) -> str:
+    if not await check_quota(user_id):
+        return "Error: storage quota exceeded. Access restricted."
     safe = resolve_safe_path(user_id, path)
     if not os.path.isfile(safe):
         return "Error: file not found."
@@ -20,8 +22,8 @@ async def read_file(user_id: str, path: str) -> str:
 
 
 async def write_file(user_id: str, path: str, content: str) -> str:
-    if not check_quota(user_id, len(content.encode())):
-        return "Error: storage quota exceeded (15GB limit)."
+    if not await check_quota(user_id, len(content.encode())):
+        return "Error: storage quota exceeded."
     safe = resolve_safe_path(user_id, path)
     os.makedirs(os.path.dirname(safe), exist_ok=True)
     with open(safe, "w", encoding="utf-8") as f:

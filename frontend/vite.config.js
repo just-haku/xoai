@@ -15,13 +15,17 @@ export default defineConfig({
         allowedHosts: ['xoai.haku.io.vn'],
         proxy: {
             '/api': {
-                target: 'http://localhost:8080',
+                target: 'http://xoai-backend:8080',
                 changeOrigin: true
             },
             '/ws': {
-                target: 'http://localhost:8080',
+                target: 'http://xoai-backend:8080',
                 ws: true
             }
+        },
+        hmr: {
+            host: 'xoai.haku.io.vn',
+            clientPort: 443
         }
     }
 })

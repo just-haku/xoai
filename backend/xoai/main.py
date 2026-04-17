@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,24 +23,21 @@ async def lifespan(app: FastAPI):
     await connect_mongo()
     await connect_redis()
     
-    # Start bridges as background tasks
-    from xoai.channels.zalo_bridge import start_zalo_bridge
-    from xoai.channels.discord_bridge import start_discord_bridge
-    from xoai.channels.telegram_bridge import start_telegram_bridge
+    # Start the multi-tenant dynamic bridges manager
+    from xoai.channels.manager import load_all_tenant_bots
     
-    app.state.zalo_task = asyncio.create_task(start_zalo_bridge())
-    app.state.discord_task = asyncio.create_task(start_discord_bridge())
-    app.state.telegram_task = asyncio.create_task(start_telegram_bridge())
+    app.state.dynamic_bots_task = asyncio.create_task(load_all_tenant_bots())
     
-    logger.info("✅ XOAI ready + Bridges starting.")
+    logger.info("✅ XOAI ready + Dynamic User Bots loading.")
     yield
     logger.info("🛑 XOAI shutting down...")
     
     # Cancel bridges
-    for task_name in ["zalo_task", "discord_task", "telegram_task"]:
-        task = getattr(app.state, task_name, None)
-        if task:
-            task.cancel()
+    if getattr(app.state, "dynamic_bots_task", None):
+        app.state.dynamic_bots_task.cancel()
+
+    from xoai.mcp.client import mcp_manager
+    await mcp_manager.disconnect_all()
     
     await close_redis()
     await close_mongo()

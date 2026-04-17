@@ -1,9 +1,10 @@
-"""Ticket management router for admins."""
-
+from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from xoai.auth.dependencies import require_admin
+from xoai.auth.router import get_current_user
 from xoai.db.mongo import get_db
+from xoai.tickets import service
 
 router = APIRouter()
 
@@ -30,6 +31,35 @@ async def get_ticket(ticket_id: str, admin: dict = Depends(require_admin)):
         raise HTTPException(status_code=404, detail="Ticket not found")
     ticket["id"] = str(ticket.pop("_id"))
     return ticket
+
+
+@router.post("/")
+async def submit_ticket(data: dict, user: dict = Depends(get_current_user)):
+    """User submits a new support ticket."""
+    subject = data.get("subject", "General Inquiry")
+    message = data.get("message")
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+    
+    ticket_id = await service.create_ticket(user["id"], subject, message)
+    return {"status": "ok", "ticket_id": ticket_id}
+
+
+@router.post("/{ticket_id}/approve")
+async def approve_ticket(ticket_id: str, admin: dict = Depends(require_admin)):
+    """Admin approves Agent 0's triage result."""
+    from bson import ObjectId
+    db = get_db()
+    
+    result = await db.tickets.update_one(
+        {"_id": ObjectId(ticket_id)},
+        {"$set": {"status": "approved", "approved_at": datetime.now(timezone.utc)}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+        
+    return {"status": "ok", "message": "Ticket approved for multi-agent resolution."}
 
 
 @router.patch("/{ticket_id}")

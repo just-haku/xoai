@@ -17,6 +17,7 @@ frontend/dist/
 # IDE
 .vscode/
 .idea/
+.antigravity/
 
 # OS
 .DS_Store

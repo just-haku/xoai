@@ -24,18 +24,21 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    identifier: str  # username or email
     password: str
 
 
 @router.post("/register")
 async def register(req: RegisterRequest):
     db = get_db()
-    existing = await db.users.find_one({"email": req.email})
+    existing = await db.users.find_one({
+        "$or": [{"email": req.email}, {"username": req.name.lower().replace(" ", "_")}]
+    })
     if existing:
-        raise HTTPException(400, "Email already registered")
+        raise HTTPException(400, "User already registered")
 
     user_doc = {
+        "username": req.name.lower().replace(" ", "_"),
         "email": req.email,
         "password_hash": hash_password(req.password),
         "name": req.name,
@@ -48,12 +51,14 @@ async def register(req: RegisterRequest):
     result = await db.users.insert_one(user_doc)
     token = create_email_verification_token(req.email)
 
-    # TODO: Send verification email via SMTP (configured in admin settings)
+    # Trigger SMTP verification email
+    from xoai.auth.service import send_verification_email
+    import asyncio
+    asyncio.create_task(send_verification_email(req.email, token))
 
     return {
         "message": "Registration successful. Please verify your email.",
         "user_id": str(result.inserted_id),
-        "verification_token": token,  # In production, sent via email only
     }
 
 
@@ -80,9 +85,11 @@ async def verify_email(token: str):
 @router.post("/login")
 async def login(req: LoginRequest):
     db = get_db()
-    user = await db.users.find_one({"email": req.email})
+    user = await db.users.find_one({
+        "$or": [{"email": req.identifier}, {"username": req.identifier}]
+    })
     if not user or not verify_password(req.password, user["password_hash"]):
-        raise HTTPException(401, "Invalid email or password")
+        raise HTTPException(401, "Invalid credentials")
 
     if not user.get("email_verified"):
         raise HTTPException(403, "Email not verified")
@@ -96,6 +103,7 @@ async def login(req: LoginRequest):
         "user": {
             "id": user_id,
             "email": user["email"],
+            "username": user.get("username", ""),
             "name": user["name"],
             "role": user["role"],
             "lang": user["lang"],

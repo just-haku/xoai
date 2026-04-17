@@ -2,9 +2,10 @@
 
 import inspect
 import logging
+import re
 from typing import Callable, Any, Dict
 
-from xoai.agents.tools import filesystem, shell, web_search, document, voice, zalo
+from xoai.agents.tools import filesystem, shell, web_search, document, voice, zalo, experience
 
 logger = logging.getLogger("xoai.agents.tool_registry")
 
@@ -14,7 +15,7 @@ class ToolRegistry:
         self.tools: Dict[str, Callable] = {}
         self.metadata: Dict[str, dict] = {}
 
-    def register(self, name: str, func: Callable, description: str):
+    def register(self, name: str, func: Callable, description: str, requires_approval: bool = False):
         self.tools[name] = func
         
         # Build JSON schema from signature
@@ -41,20 +42,43 @@ class ToolRegistry:
         self.metadata[name] = {
             "name": name,
             "description": description,
-            "parameters": parameters
+            "parameters": parameters,
+            "requires_approval": requires_approval
         }
 
-    def register_mcp_tools(self, server_name: str, tools: list[dict]):
+    def register_mcp_tools(self, server_name: str, tools: list[dict], user_id: str | None = None, allowed_roles: list[str] | None = None):
         """Register a list of tool definitions from an MCP server."""
         for t in tools:
-            name = t["name"]
-            self.metadata[name] = t
-            # Mark it so the agent knows to call mcp_manager
-            self.metadata[name]["_mcp_server"] = server_name
+            source_name = t["name"]
+            safe_server = re.sub(r"[^a-zA-Z0-9_]+", "_", server_name)
+            safe_name = re.sub(r"[^a-zA-Z0-9_]+", "_", source_name)
+            name = f"mcp__{safe_server}__{safe_name}"
+
+            self.metadata[name] = {
+                "name": name,
+                "description": f"[MCP:{server_name}] {t.get('description', source_name)}",
+                "parameters": t.get("inputSchema") or t.get("parameters") or {
+                    "type": "object",
+                    "properties": {},
+                },
+                "requires_approval": False,
+                "_mcp_server": server_name,
+                "_mcp_tool_name": source_name,
+                "_mcp_user_id": user_id,
+                "allowed_roles": allowed_roles or ["admin", "user"],
+            }
 
     def get_definitions(self) -> list[dict]:
         """Return tool definitions in OpenAI/Gemini compatible format."""
-        return list(self.metadata.values())
+        defs = []
+        for meta in self.metadata.values():
+            defs.append({
+                "name": meta["name"],
+                "description": meta["description"],
+                "parameters": meta.get("parameters", {"type": "object", "properties": {}}),
+                "requires_approval": meta.get("requires_approval", False),
+            })
+        return defs
 
     async def call(self, name: str, args: dict, context: dict) -> Any:
         """Call a tool with provided args and internal context."""
@@ -63,8 +87,9 @@ class ToolRegistry:
             from xoai.mcp.client import mcp_manager
             return await mcp_manager.call_tool(
                 self.metadata[name]["_mcp_server"], 
-                name, 
-                args
+                self.metadata[name]["_mcp_tool_name"], 
+                args,
+                user_id=self.metadata[name].get("_mcp_user_id") or context.get("user_id"),
             )
 
         if name not in self.tools:
@@ -89,21 +114,35 @@ class ToolRegistry:
 
 # --- Global Registries ---
 
-async def inject_mcp_tools(reg: ToolRegistry, user_id: str | None = None):
+async def inject_mcp_tools(reg: ToolRegistry, user_id: str | None = None, role: str = "user"):
     """Fetch MCP servers from DB and inject their tools into the registry."""
     from xoai.db.mongo import get_db
     db = get_db()
-    query = {"user_id": user_id} if user_id else {"user_id": None}
+    query = {"enabled": {"$ne": False}}
+    if user_id:
+        query["$or"] = [{"user_id": None}, {"user_id": user_id}]
+    else:
+        query["user_id"] = None
     async for server in db.mcp_servers.find(query):
-        reg.register_mcp_tools(server["name"], server.get("tools_cache", []))
+        allowed_roles = server.get("allowed_roles") or (["admin", "user"] if not server.get("user_id") else ["user"])
+        if role not in allowed_roles:
+            continue
+        reg.register_mcp_tools(
+            server["name"],
+            server.get("tools_cache", []),
+            user_id=server.get("user_id"),
+            allowed_roles=allowed_roles,
+        )
 
 
-def create_admin_registry() -> ToolRegistry:
+def create_admin_registry(read_only: bool = False) -> ToolRegistry:
     reg = ToolRegistry()
     reg.register("list_files", filesystem.list_files, "List files in the current workspace.")
     reg.register("read_file", filesystem.read_file, "Read content of a file. (Path jail enforced)")
-    reg.register("write_file", filesystem.write_file, "Write content to a file. (Path jail + 15GB quota enforced)")
-    reg.register("execute_command", shell.execute_command, "Run a shell command in the user's venv.")
+    reg.register("lookup_experience", experience.lookup_experience_tool, "Retrieve prior lessons and experience insights for a profile.")
+    if not read_only:
+        reg.register("write_file", filesystem.write_file, "Write content to a file. (Path jail + 15GB quota enforced)")
+        reg.register("execute_command", shell.execute_command, "Run a shell command in the user's venv.", requires_approval=True)
     reg.register("search_web", web_search.search_web, "Search the internet via DuckDuckGo.")
     reg.register("convert_to_docx", document.convert_to_docx, "Convert text content to a .docx file.")
     # Add voice, zalo, etc.

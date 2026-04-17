@@ -10,21 +10,11 @@ logger = logging.getLogger("xoai.agents.executor")
 from xoai.agents.base import BaseAgent
 from xoai.agents.llm_pool import get_agent_config
 from xoai.agents.tool_registry import create_admin_registry
+from xoai.prompts.manager import get_prompt
 
 logger = logging.getLogger("xoai.agents.executor")
 
-EXECUTOR_PROMPT = """
-You are XOAI EXECUTOR (Agent 2). You are a master software engineer and sysadmin.
-You have FULL access to the user's workspace, shell, and internet.
-Your goal is to fulfill the directive with absolute precision.
-
-Rules:
-1. THINK before you act. 
-2. Use tools to verify your assumptions (e.g., list_files before read_file).
-3. Always check for errors in tool outputs.
-4. Speak only when necessary or to report progress.
-5. If you are stuck, explain why.
-"""
+# EXECUTOR_PROMPT moved to prompts folder
 
 async def execute(directive: str, conversation_id: str, user_id: str):
     """Execute a task with full tools."""
@@ -33,7 +23,7 @@ async def execute(directive: str, conversation_id: str, user_id: str):
         return {"error": "Agent 2 not configured."}
 
     registry = create_admin_registry()
-    agent = BaseAgent("Agent 2", config, EXECUTOR_PROMPT, tools=registry)
+    agent = BaseAgent("Agent 2", config, get_prompt("executor"), tools=registry)
     
     # For sync-style call from supervisor, we'll return the final result or stream
     # Phase 3 simplification: just return the stream generator

@@ -8,7 +8,7 @@ from xoai.config import settings
 from xoai.db.mongo import get_db
 
 
-QUOTA_LIMIT_BYTES = 15 * 1024 * 1024 * 1024  # 15GB
+QUOTA_LIMIT_BYTES = 5 * 1024 * 1024 * 1024  # 5GB default
 
 
 async def list_users(skip: int = 0, limit: int = 50):
@@ -44,8 +44,15 @@ async def approve_user(user_id: str) -> bool:
     return False
 
 
-async def disable_user(user_id: str) -> bool:
+async def disable_user(user_id: str, operator_id: str) -> bool:
+    if user_id == operator_id:
+        return False  # Target cannot be self
+    
     db = get_db()
+    target = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target or target.get("role") == "admin":
+        return False  # Target cannot be admin (or must exist)
+
     result = await db.users.update_one(
         {"_id": ObjectId(user_id)},
         {"$set": {"status": "disabled"}},

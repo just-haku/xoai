@@ -1,10 +1,11 @@
 """Base Agent class — Handles orchestration loop, tool calling, and streaming."""
 
+import asyncio
 import json
 import logging
 from typing import AsyncIterator
 
-from xoai.agents.llm_pool import get_provider, get_fallback_key
+from xoai.agents.llm_pool import get_provider
 from xoai.agents.tool_registry import ToolRegistry
 from xoai.agents.memory import save_message
 
@@ -39,6 +40,9 @@ class BaseAgent:
         """Process a message and yield response chunks + tool status."""
         await self._ensure_provider()
         
+        # yield self for HITL signal capture back in websocket handler
+        yield {"type": "agent_instance", "instance": self}
+
         # Prepare context
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(history)
@@ -74,28 +78,46 @@ class BaseAgent:
 
                 # 2. Execute tools
                 for tc in tool_calls:
-                    # Generic handling for both OpenAI/Gemini SDK structures
-                    if hasattr(tc, "function"): # OpenAI style
+                    # ... [parsing tc]
+                    if hasattr(tc, "function"): 
                         name = tc.function.name
                         args = json.loads(tc.function.arguments)
-                    else: # Gemini style (assumed)
+                        tc_id = getattr(tc, "id", name)
+                    else: 
                         name = tc.name
                         args = tc.args
+                        tc_id = name
                     
-                    yield {"type": "tool_start", "tool": name, "args": args}
-                    
-                    result = await self.tools.call(
-                        name, 
-                        args, 
-                        context={"user_id": user_id, "conversation_id": conversation_id}
-                    )
+                    # Check for HITL
+                    tool_meta = self.tools.metadata.get(name, {})
+                    if tool_meta.get("requires_approval"):
+                        yield {
+                            "type": "input_required", 
+                            "tool": name, 
+                            "args": args,
+                            "tc_id": tc_id
+                        }
+                        # Wait for external signal (via WebSocket handler)
+                        self.input_event = asyncio.Event()
+                        self.last_input_response = None
+                        await self.input_event.wait()
+                        
+                        if self.last_input_response != "allow":
+                            result = "User denied execution."
+                            yield {"type": "content", "content": "\n\n*Execution denied by user.*"}
+                        else:
+                            yield {"type": "tool_start", "tool": name, "args": args}
+                            result = await self.tools.call(name, args, context={"user_id": user_id, "conversation_id": conversation_id})
+                    else:
+                        yield {"type": "tool_start", "tool": name, "args": args}
+                        result = await self.tools.call(name, args, context={"user_id": user_id, "conversation_id": conversation_id})
                     
                     yield {"type": "tool_end", "tool": name, "result": result}
                     
                     # Append tool result to history
                     messages.append({
                         "role": "tool", 
-                        "tool_call_id": getattr(tc, "id", name), 
+                        "tool_call_id": tc_id, 
                         "name": name, 
                         "content": str(result)
                     })

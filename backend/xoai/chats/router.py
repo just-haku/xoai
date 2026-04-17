@@ -13,17 +13,27 @@ async def get_chats(user: dict = Depends(get_current_user)):
     return {"status": "success", "chats": chats}
 
 @router.post("/{chat_id}/fork")
-async def fork_chat(chat_id: str, user: dict = Depends(get_current_user)):
+async def fork_chat(chat_id: str, data: dict = None, user: dict = Depends(get_current_user)):
+    # Legacy fork (copy all) or Fork-at (copy up to index)
+    index = data.get("index") if data else None
+    new_content = data.get("content") if data else None
+    
     original = await db.conversations.find_one({"chat_id": chat_id, "user_id": user["id"]})
     if not original:
         raise HTTPException(status_code=404, detail="Chat not found")
     
+    messages = original.get("messages", [])
+    if index is not None:
+        messages = messages[:index]
+        if new_content:
+            messages.append({"role": "user", "content": new_content, "created_at": datetime.now(timezone.utc)})
+            
     new_chat_id = str(uuid.uuid4())
     new_chat = {
         "chat_id": new_chat_id,
         "user_id": user["id"],
-        "title": f"Fork of {original.get('title', 'Untitled')}",
-        "messages": original.get("messages", []),
+        "title": f"Branch of {original.get('title', 'Untitled')}",
+        "messages": messages,
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc)
     }

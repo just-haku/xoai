@@ -81,10 +81,10 @@ async def list_available_models() -> list[dict]:
     """Ping configured providers and return available models."""
     models = []
 
-    # Check admin-configured agents
+    # Check admin-configured agents (only if keys exist)
     for agent_name in ["agent_0", "agent_1", "agent_2"]:
         config = await get_agent_config(agent_name)
-        if config and config.get("model"):
+        if config and config.get("model") and config.get("key"):
             models.append({
                 "id": config["model"],
                 "provider": config.get("provider", "unknown"),
@@ -100,3 +100,31 @@ async def list_available_models() -> list[dict]:
         })
 
     return models
+
+
+class LLMPool:
+    """Central manager for LLM interactions with automated key selection."""
+    
+    async def generate(self, prompt: str, model: str = None) -> str:
+        """Simple text generation using a fallback key or a specific agent config."""
+        # For auto-titling and general server tasks, use fallback pool
+        config = await get_fallback_key()
+        if not config:
+            # Fallback to hardcoded agent_0 config if pool is empty
+            config = await get_agent_config("agent_0")
+            
+        if not config:
+            raise ValueError("No LLM configuration found for pool.generate")
+
+        provider = await get_provider(config)
+        # Use provider-specific model if not overridden
+        target_model = model or config.get("model")
+        
+        # chat() returns {"content": "...", "tool_calls": ...}
+        response = await provider.chat(
+            model=target_model,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.get("content", "")
+
+llm_pool = LLMPool()

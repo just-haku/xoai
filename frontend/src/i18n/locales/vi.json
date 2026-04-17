@@ -3,18 +3,62 @@
     "profile": "Cá nhân",
     "settings": "Cài đặt",
     "server": "Máy chủ",
-    "workspace": "Không gian làm việc",
+    "workspace": "Không gian",
     "chat": "Trò chuyện",
     "support": "Hỗ trợ",
     "logout": "Đăng xuất"
+  },
+  "auth": {
+    "login": {
+      "title": "Truy cập Hệ thống",
+      "identifier": "Tên đăng nhập hoặc Email",
+      "password": "Mật khẩu",
+      "submit": "Đăng nhập",
+      "loading": "Đang xác thực...",
+      "no_account": "Chưa có tài khoản?",
+      "register_link": "Tạo ngay"
+    },
+    "register": {
+      "title": "Tham gia Nền tảng",
+      "approval_tip": "Tài khoản của bạn cần quản trị viên phê duyệt sau khi đăng ký.",
+      "name": "Họ và Tên",
+      "email": "Email",
+      "verif": {
+        "send": "Gửi mã xác thực",
+        "resend": "Gửi lại trong {s}s",
+        "resend_init": "Gửi lại mã",
+        "code": "Mã xác thực",
+        "error": "Mã không chính xác",
+        "success": "Xác thực Email thành công ✓"
+      },
+      "password": "Mật khẩu",
+      "submit": "Đăng ký",
+      "loading": "Đang tạo tài khoản...",
+      "have_account": "Đã có tài khoản?",
+      "login_link": "Đăng nhập"
+    }
+  },
+  "landing": {
+    "nav": {
+      "signin": "Đăng nhập"
+    },
+    "hero": {
+      "title_main": "Trí tuệ",
+      "title_accent": "Hợp nhất",
+      "subtitle": "Hệ điều hành đa đại lý tiên tiến cho thế hệ tính toán kỹ thuật tiếp theo và cách ly luồng công việc tuyệt đối.",
+      "cta": "Khởi chạy Nền tảng"
+    },
+    "footer": {
+      "copy": "2026 XOAI Platform. Hệ thống đại lý tiên tiến."
+    }
   },
   "settings": {
     "interface": {
       "title": "Giao diện",
       "theme": {
         "title": "Chủ đề",
-        "dark": "Tối",
-        "light": "Sáng"
+        "dark": "Chuyên nghiệp (Tối)",
+        "light": "Thẩm mỹ (Sáng)"
       },
       "color": {
         "title": "Màu thương hiệu",
@@ -25,31 +69,382 @@
         "contrast": "Tương phản"
       },
       "font": "Kiểu chữ",
-      "scale": "Tỷ lệ UI",
-      "language": "Ngôn ngữ"
+      "scale": "Tỷ lệ giao diện",
+      "language": "Ngôn ngữ",
+      "pastel": "Bộ lọc Pastel",
+      "pastel_desc": "Làm dịu màu giao diện để dễ đọc hơn",
+      "reset_layout": "Khôi phục bố cục"
     },
     "intelligence": {
-      "title": "Trí tuệ",
-      "active_model": "Mô hình",
+      "title": "Định danh",
+      "provider": "Nhà cung cấp AI chính",
+      "active_model": "Mô hình hoạt động",
       "system_prompt": "Lời nhắc hệ thống",
       "api_keys": "Khóa API",
-      "fetch_models": "Tải danh sách mô hình"
+      "fetch_models": "Tải mô hình"
     },
     "profile": {
       "title": "Hồ sơ",
       "name": "Tên hiển thị",
       "email": "Địa chỉ Email",
       "bio": "Giới thiệu",
+      "bio_placeholder": "Kể cho XOAI về bạn...",
       "avatar": "Ảnh đại diện",
       "change_image": "Đổi ảnh",
       "password": "Mật khẩu mới"
     },
-    "server": {
-      "title": "Quản trị",
-      "user_mgmt": "Quản lý người dùng",
-      "infra": "Hạ tầng",
-      "security": "Bảo mật",
-      "logs": "Nhật ký hệ thống"
+    "security": {
+      "title": "Bảo mật",
+      "old_pass": "Mật khẩu cũ",
+      "new_pass": "Mật khẩu mới",
+      "confirm_pass": "Xác nhận mật khẩu"
+    },
+    "integrations": {
+      "title": "Tích hợp",
+      "discord": "Token Bot Discord",
+      "telegram": "Token Bot Telegram",
+      "zalo": "Token Bot Zalo",
+      "tip": "Nhập token sẽ tự động lưu trữ và định tuyến các tin nhắn đến từ nền tảng đó tới Work Chat Omni-Channel của bạn."
+    },
+    "common": {
+      "save": "Lưu thay đổi",
+      "synchronized": "Cài đặt đã được đồng bộ với máy chủ."
+    },
+    "channel": {
+      "title": "Kênh kết nối",
+      "discord": "Discord",
+      "telegram": "Telegram",
+      "zalo": "Zalo"
+    },
+    "agent": {
+      "title": "Cá tính Đại lý",
+      "desc": "Cấu hình mô hình trí tuệ nền tảng cho đại lý cá nhân của bạn.",
+      "provider": "Nhà cung cấp",
+      "apiKey": "Khóa API",
+      "save": "Cập nhật Đại lý"
+    }
+  },
+  "admin": {
+    "title": "MangOS - Trung tâm Điều hành",
+    "version": "v4.1.1-ULTIMATE-LEXICON",
+    "status_online": "Hệ thống Trực tuyến",
+    "btn_return": "Quay lại Chat",
+    "tabs": {
+      "godMode": "Chế độ God Mode",
+      "triad": "Kiểm soát Triad",
+      "users": "Quản lý Người dùng",
+      "infra": "Hạ tầng"
+    },
+    "godMode": {
+      "title": "Phiên người dùng hoạt động (God Mode)",
+      "desc": "Truy cập màn hình người dùng, kiểm tra không gian làm việc và giám sát các cuộc trò chuyện riêng tư.",
+      "actions": {
+        "switch": "Chuyển ngữ cảnh",
+        "workspace": "Đọc/Ghi không gian",
+        "audit": "Chế độ giám sát"
+      }
+    },
+    "triad": {
+      "title": "Cấu hình Đại lý & Triad",
+      "bridge": {
+        "label": "Agent 0 Kiểm soát (Bridge Mode)",
+        "desc": "Bỏ qua A0 cho người dùng bình thường. Chỉ bật cho người dùng gắn cờ/VIP."
+      },
+      "agents": {
+        "a0": "Agent 0 (Giám sát)",
+        "a1": "Agent 1 (Kiến trúc)",
+        "a2": "Agent 2 (Thực thi)"
+      },
+      "model_override": "Ghi đè mô hình",
+      "apply": "Áp dụng cấu hình AI",
+      "soul": {
+        "title": "Chỉnh sửa Soul OS trực tiếp",
+        "desc": "Chỉnh sửa trực tiếp các tệp hướng dẫn markdown trong <code>/app/prompts/*.md</code>",
+        "save": "Tải lại Lời nhắc"
+      }
+    },
+    "users": {
+      "stats": {
+        "total": "Tổng người dùng",
+        "pending": "Chờ duyệt",
+        "tickets": "Yêu cầu hỗ trợ"
+      },
+      "title": "Phê duyệt & Hạn mức",
+      "table": {
+        "user": "Người dùng",
+        "status": "Trạng thái",
+        "storage": "Lưu trữ",
+        "actions": "Thao tác"
+      },
+      "actions": {
+        "edit_quota": "Sửa Hạn mức",
+        "approve": "Phê duyệt",
+        "suspend": "Tạm đình chỉ"
+      }
+    },
+    "infra": {
+      "title": "Hạ tầng Nền tảng",
+      "path": {
+        "label": "Đường dẫn gắn Không gian Admin"
+      },
+      "mcp": {
+        "title": "Máy chủ MCP Toàn cầu",
+        "desc": "Cài đặt các plugin trực tiếp vào ngữ cảnh của Triad.",
+        "install": "Cài đặt"
+      },
+      "cli": {
+        "title": "CLI Siêu năng lực",
+        "desc": "Các lệnh thực thi cơ sở dữ liệu thô."
+      },
+      "notifications": {
+        "config_updated": "Cấu hình hệ thống đã được cập nhật thành công.",
+        "config_failed": "Cập nhật cấu hình hệ thống thất bại: {error}"
+      }
+    },
+    "dashboard": {
+      "back_to_workspace": "Quay lại Không gian làm việc",
+      "system_online": "Hệ thống Trực tuyến",
+      "breadcrumb": "Quản trị",
+      "tabs": {
+        "users": {
+          "label": "Công dân",
+          "desc": "Quản lý người dùng, quyền hạn và hạn mức lưu trữ."
+        },
+        "agents": {
+          "label": "Trí tuệ",
+          "desc": "Cấu hình các nhà cung cấp AI toàn cục cho A0, A1 và A2."
+        },
+        "runtime": {
+          "label": "Runtime",
+          "desc": "Theo dõi topology truy vấn, kinh nghiệm và tiến hóa prompt."
+        },
+        "mcp": {
+          "label": "MCP",
+          "desc": "Đăng ký và làm mới các máy chủ và công cụ MCP bên ngoài."
+        },
+        "infra": {
+          "label": "Core / Hạ tầng",
+          "desc": "Xương sống hệ thống, SMTP và quy tắc tập tin."
+        },
+        "godMode": {
+          "label": "Giám sát",
+          "desc": "Theo dõi thời gian thực và telemetry của hệ thống."
+        }
+      },
+      "common": {
+        "enabled": "BẬT",
+        "disabled": "TẮT",
+        "refresh": "Làm mới"
+      },
+      "users": {
+        "stats": {
+          "total_citizens": "Tổng công dân",
+          "pending_approval": "Chờ duyệt",
+          "active_workspaces": "Không gian hoạt động"
+        },
+        "table": {
+          "identifier": "Định danh",
+          "status": "Trạng thái",
+          "quota_storage": "Hạn mức / Lưu trữ",
+          "governance": "Quản trị"
+        },
+        "actions": {
+          "quota": "Hạn mức",
+          "reset_password": "Đặt lại mật khẩu",
+          "approve": "Phê duyệt",
+          "suspend": "Tạm đình chỉ"
+        },
+        "prompts": {
+          "modify_quota": "Chỉnh hạn mức cho {user}",
+          "enter_quota": "Nhập hạn mức mới theo Gigabyte (GB):",
+          "reset_password": "Đặt lại mật khẩu cho {user}",
+          "enter_new_password": "Nhập mật khẩu mới cho người dùng này:",
+          "revoke_access": "Thu hồi quyền truy cập",
+          "confirm_suspend": "Bạn có chắc muốn tạm đình chỉ {user}?"
+        }
+      },
+      "agents": {
+        "provider": "Nhà cung cấp",
+        "api_key": "Khóa API / Bí mật",
+        "model_id": "Mã mô hình",
+        "fetch_models": "Tải mô hình",
+        "fetching": "Đang tải...",
+        "select_model": "Chọn mô hình...",
+        "model_placeholder": "gpt-4o, claude-3-5-sonnet",
+        "base_url": "Base URL (Tùy chọn)",
+        "base_url_placeholder": "https://api.openai.com/v1",
+        "save": "Lưu kiến trúc trí tuệ toàn cục",
+        "providers": {
+          "gemini": "Google Gemini",
+          "openai": "OpenAI",
+          "anthropic": "Anthropic",
+          "ollama": "Ollama (Cục bộ)",
+          "custom": "Endpoint tùy chỉnh"
+        }
+      },
+      "infra": {
+        "smtp_title": "Liên lạc (SMTP)",
+        "hostname": "Hostname",
+        "hostname_placeholder": "smtp.gmail.com",
+        "port": "Cổng",
+        "port_placeholder": "587",
+        "username": "Tên đăng nhập",
+        "username_placeholder": "noreply@xoai.io",
+        "secret": "Bí mật",
+        "workspace_title": "Không gian & Lưu trữ",
+        "default_local_path": "Đường dẫn cục bộ mặc định",
+        "default_local_path_placeholder": "/home/user/xoai-storage",
+        "bridge_mode": "Chế độ Cầu nối Agent 0",
+        "bridge_mode_desc": "Bật định tuyến liên tác tử thông qua Agent 0.",
+        "save": "Cập nhật Hạ tầng"
+      },
+      "runtime": {
+        "stats": {
+          "query_runs": "Lượt chạy truy vấn gần đây",
+          "insights": "Insight kinh nghiệm",
+          "prompt_candidates": "Ứng viên prompt"
+        },
+        "query_runs_title": "Lượt chạy Query Topology",
+        "query_runs_desc": "Các lần thực thi gần đây do bộ điều phối theo truy vấn sinh ra.",
+        "detail_title": "Chi tiết lượt chạy truy vấn",
+        "no_query_runs": "Chưa có lượt chạy truy vấn nào.",
+        "insights_title": "Insight Kinh nghiệm",
+        "insights_desc": "Các mẫu thành công và thất bại đã được hợp nhất theo profile.",
+        "recommended": "Khuyến nghị",
+        "failure_signals": "Tín hiệu thất bại",
+        "no_insights": "Chưa có insight nào được hợp nhất.",
+        "lessons_title": "Bài học kinh nghiệm",
+        "lessons_desc": "Các bài học đã được tuyển chọn để nuôi insight và hợp nhất sau này.",
+        "consolidations_title": "Lịch sử hợp nhất",
+        "consolidations_desc": "Nhật ký các hành động hợp nhất bài học tự động và thủ công.",
+        "candidates_title": "Ứng viên Tiến hóa Prompt",
+        "candidates_desc": "Các biến thể prompt theo vai trò được đề xuất từ các lượt chạy thất bại.",
+        "evaluate": "Đánh giá",
+        "benchmark": "Benchmark",
+        "promote": "Thăng cấp",
+        "reject": "Loại bỏ",
+        "inspect": "Xem",
+        "keep": "Giữ",
+        "add": "Thêm",
+        "prune": "Tỉa",
+        "merge": "Hợp nhất",
+        "merge_lesson_title": "Hợp nhất bài học",
+        "merge_lesson_prompt": "Nhập ID bài học đích để hợp nhất vào:",
+        "final_output": "Kết quả cuối",
+        "failure_summary": "Tóm tắt lỗi",
+        "trace_map_title": "Bản đồ Trace DAG",
+        "trace_map_desc": "Timeline node có cấu trúc với nhánh song song, verifier, retry và reason code.",
+        "trace_nodes": "node",
+        "branch_primary": "Chính",
+        "branch_parallel": "Song song",
+        "branch_verifier": "Verifier",
+        "branch_retry": "Retry",
+        "parallel_group": "Song song",
+        "verifier_for": "Verifier cho",
+        "retry_of": "Retry của",
+        "reason_code": "Lý do",
+        "output_chunks": "Các đoạn đầu ra",
+        "prompt_versions_title": "Phiên bản prompt",
+        "prompt_versions_desc": "Lịch sử phiên bản, diff và rollback cho các prompt đã thăng cấp.",
+        "rollback": "Khôi phục",
+        "prompt_content": "Nội dung prompt",
+        "prompt_diff": "Diff prompt",
+        "no_candidates": "Chưa có ứng viên prompt nào.",
+        "no_lessons": "Chưa có bài học kinh nghiệm nào.",
+        "no_consolidations": "Chưa ghi nhận hành động hợp nhất nào.",
+        "no_prompt_versions": "Chưa có phiên bản prompt nào."
+      },
+      "roles": {
+        "admin": "Quản trị",
+        "user": "Người dùng"
+      },
+      "mcp": {
+        "register_title": "Đăng ký MCP Server",
+        "edit_title": "Chỉnh sửa MCP Server",
+        "register_desc": "Định nghĩa transport, phạm vi và biến môi trường tùy chọn cho công cụ bên ngoài.",
+        "name": "Tên",
+        "name_placeholder": "filesystem-lsp",
+        "transport": "Transport",
+        "scope": "Phạm vi",
+        "scope_global": "Toàn cục",
+        "scope_user": "Theo người dùng",
+        "enabled_label": "Trạng thái",
+        "allowed_roles": "Vai trò được phép",
+        "user_scope": "Người dùng áp dụng",
+        "select_user": "Chọn người dùng...",
+        "command": "Lệnh",
+        "command_placeholder": "npx",
+        "args": "Args (cách nhau bằng khoảng trắng)",
+        "args_placeholder": "-y @modelcontextprotocol/server-filesystem /workspace",
+        "env_json": "Env JSON (tùy chọn)",
+        "env_placeholder": "{\"NODE_ENV\":\"production\"}",
+        "add": "Thêm MCP Server",
+        "update": "Cập nhật MCP Server",
+        "connected_title": "MCP Server đã kết nối",
+        "server_meta": "Transport: {transport} · Phạm vi: {scope} · Người dùng: {user} · Công cụ: {tools}",
+        "server_health": "Heartbeat: {heartbeat} · Số lần kết nối lại: {reconnects} · Vai trò: {roles}",
+        "edit": "Sửa",
+        "no_servers": "Chưa có MCP server nào được đăng ký.",
+        "delete_title": "Xóa MCP Server",
+        "delete_confirm": "Xóa MCP server '{name}'?"
+      },
+      "godmode": {
+        "title": "Giám sát Tối cao đang hoạt động",
+        "desc": "Bạn đang xem telemetry người dùng và trạng thái không gian làm việc theo thời gian thực. Hãy dùng cẩn trọng.",
+        "last_act": "Hành động cuối",
+        "active_ws": "WS hoạt động",
+        "mirror": "Phản chiếu",
+        "logs": "Nhật ký",
+        "mirror_desktop": "Phản chiếu màn hình",
+        "audit_logs": "Kiểm tra nhật ký"
+      },
+      "notifications": {
+        "infra_saved": "Cấu hình hạ tầng đã được đồng bộ",
+        "sync_failed": "Đồng bộ thất bại: {error}",
+        "agent_saved": "Kiến trúc trí tuệ toàn cục đã được cập nhật",
+        "agent_failed": "Cập nhật agent thất bại: {error}",
+        "api_key_required": "Cần API Key để tải mô hình",
+        "models_fetched": "Đã tải {count} mô hình cho {agent}",
+        "no_models": "Nhà cung cấp không trả về mô hình nào",
+        "fetch_failed": "Tải thất bại: {error}",
+        "invalid_number": "Số không hợp lệ",
+        "quota_updated": "Hạn mức của {user} đã được chỉnh thành {limit} GB",
+        "quota_failed": "Chỉnh hạn mức thất bại: {error}",
+        "password_updated": "Mật khẩu của {user} đã được cập nhật",
+        "reset_failed": "Đặt lại thất bại: {error}",
+        "user_approved": "{user} đã được cấp quyền truy cập",
+        "grant_failed": "Cấp quyền thất bại: {error}",
+        "user_suspended": "Đã thu hồi quyền truy cập của {user}",
+        "revoke_failed": "Thu hồi thất bại: {error}",
+        "action_initiated": "{action} đã được khởi tạo cho {target}",
+        "runtime_load_failed": "Tải telemetry runtime thất bại: {error}",
+        "mcp_load_failed": "Tải MCP server thất bại: {error}",
+        "mcp_name_command_required": "Tên và lệnh MCP là bắt buộc",
+        "mcp_user_required": "Chọn người dùng cho MCP theo người dùng",
+        "mcp_updated": "MCP server '{name}' đã được cập nhật",
+        "mcp_created": "MCP server '{name}' đã được đăng ký",
+        "mcp_save_failed": "Lưu MCP server thất bại: {error}",
+        "mcp_refreshed": "Đã làm mới MCP server '{name}'",
+        "mcp_refresh_failed": "Làm mới MCP thất bại: {error}",
+        "mcp_deleted": "Đã xóa MCP server '{name}'",
+        "mcp_delete_failed": "Xóa MCP server thất bại: {error}",
+        "candidate_evaluated": "Đã đánh giá ứng viên prompt cho {role}",
+        "candidate_evaluate_failed": "Đánh giá ứng viên prompt thất bại: {error}",
+        "candidate_benchmarked": "Đã benchmark ứng viên prompt cho {role}",
+        "candidate_benchmark_failed": "Benchmark ứng viên prompt thất bại: {error}",
+        "candidate_promoted": "Đã thăng cấp ứng viên prompt cho {role}",
+        "candidate_promote_failed": "Thăng cấp ứng viên prompt thất bại: {error}",
+        "candidate_rejected": "Đã loại bỏ ứng viên prompt cho {role}",
+        "candidate_reject_failed": "Loại bỏ ứng viên prompt thất bại: {error}",
+        "lesson_action": "Đã đánh dấu bài học là {action}",
+        "lesson_action_failed": "Không thể {action} bài học: {error}",
+        "lesson_merged": "Đã hợp nhất bài học thành công",
+        "lesson_merge_failed": "Hợp nhất bài học thất bại: {error}",
+        "query_run_failed": "Tải chi tiết lượt chạy thất bại: {error}",
+        "prompt_version_failed": "Tải phiên bản prompt thất bại: {error}",
+        "prompt_version_rolled_back": "Đã khôi phục {role} về {version}",
+        "prompt_version_rollback_failed": "Khôi phục prompt thất bại: {error}"
+      }
     }
   },
   "chat": {
@@ -57,25 +452,186 @@
     "new_chat": "Cuộc trò chuyện mới",
     "default_title": "Phiên khám phá",
     "welcome_title": "Tôi có thể giúp gì cho bạn hôm nay?",
-    "welcome_subtitle": "Tôi là Hệ diều hành AI đa đại lý của bạn.",
-    "toggle_workspace": "Bật/tắt Không gian làm việc",
+    "welcome_subtitle": "Tôi là Hệ điều hành AI đa đại lý của bạn.",
+    "toggle_workspace": "Bật/Tắt Không gian làm việc",
     "rename": "Đổi tên",
-    "fork": "Sao chép (Nhân bản)",
+    "fork": "Sao chép (Toàn bộ)",
     "trash": "Xóa",
     "input_placeholder": "Nhắn cho XOAI...",
-    "streaming": "XOAI đang suy nghĩ..."
+    "streaming": "XOAI đang suy nghĩ...",
+    "search": "Tìm kiếm phiên...",
+    "locked": "Đã khóa",
+    "model_none": "Chưa chọn",
+    "identity_required": "Yêu cầu cấu hình Định danh (Khóa API).",
+    "missing_key": "Thiếu Khóa API. Vui lòng cấu hình cài đặt Định danh.",
+    "agent_using": "{agent} hiện đang sử dụng {model} qua {provider}.",
+    "loading_models": "Đang tải mô hình...",
+    "view": {
+      "work_chat_title": "Chat - Work Chat",
+      "new_chat_title": "Chat - Cuộc trò chuyện mới",
+      "chat_title": "Chat - {title}",
+      "omni_channel": "Omni-Channel",
+      "reset_layout": "Đặt lại bố cục",
+      "maximize_all": "Phóng to tất cả",
+      "minimize_all": "Thu nhỏ tất cả",
+      "workspace_quota": "Workspace - Dung lượng: {quota}",
+      "unlimited": "Không giới hạn",
+      "suggestions": {
+        "architect": {
+          "text": "Thiết kế một microservice mới",
+          "sub": "Thiết kế backend Node.js có Redis và khả năng mở rộng"
+        },
+        "ui": {
+          "text": "Xây dựng một UI component cao cấp",
+          "sub": "Tạo dashboard glassmorphism bằng Vue 3"
+        },
+        "patterns": {
+          "text": "Giải thích các pattern của dự án",
+          "sub": "Phân tích kiến trúc SOUL của workspace này"
+        },
+        "refactor": {
+          "text": "Refactor logic cũ",
+          "sub": "Hiện đại hóa mã để tăng hiệu năng"
+        }
+      },
+      "notifications": {
+        "work_chat_assigned": "Đã gán Work Chat thành công.",
+        "work_chat_assign_failed": "Không thể lưu Work Chat.",
+        "work_chat_unlinked": "Đã hủy liên kết Work Chat."
+      }
+    }
   },
   "workspace": {
-    "files": "Tệp tin",
+    "files": "Không gian làm việc",
     "upload": "Tải tệp lên",
     "new_folder": "Thư mục mới",
     "refresh": "Làm mới",
-    "empty": "Không có tệp nào"
+    "empty": "Không có tệp nào trong không gian",
+    "title": "Không gian làm việc",
+    "drop_tip": "Thả tệp để tải lên",
+    "context": {
+      "open": "Mở",
+      "download": "Tải xuống",
+      "share": "Chia sẻ",
+      "rename": "Đổi tên",
+      "trash": "Xóa",
+      "upload_file": "Tải tệp lên",
+      "upload_folder": "Tải thư mục lên",
+      "new_folder": "Thư mục mới"
+    },
+    "preview": {
+      "not_available": "Không có bản xem trước cho loại tệp này."
+    },
+    "chat_list": "Chats",
+    "discovery_session": "Phiên khám phá",
+    "system_workspace": "Không gian hệ thống",
+    "hide_chat": "Ẩn chat",
+    "show_chat": "Hiện chat",
+    "personal_assistant": "Trợ lý cá nhân",
+    "type_to_chat": "Nhập để trò chuyện..."
+  },
+  "userSettings": {
+    "back_to_workspace": "Quay lại Không gian làm việc",
+    "identity": "Định danh",
+    "breadcrumb": "Cài đặt",
+    "change": "Đổi",
+    "get_code": "Lấy mã",
+    "enter_code": "Nhập mã 6 chữ số",
+    "verify_update": "Xác minh & cập nhật",
+    "save_profile": "Lưu thay đổi hồ sơ",
+    "ui_scaling": "Tỷ lệ giao diện",
+    "ui_scaling_desc": "Điều chỉnh mật độ của toàn bộ giao diện.",
+    "theme_palette": "Bảng màu giao diện",
+    "theme_palette_desc": "Chọn màu nhấn chính của bạn.",
+    "aesthetics": "Thẩm mỹ",
+    "aesthetics_desc": "Làm dịu độ bão hòa và độ rực tổng thể.",
+    "on": "BẬT",
+    "off": "TẮT",
+    "language_desc": "Chọn ngôn ngữ giao diện.",
+    "update_security": "Cập nhật khóa bảo mật",
+    "hide": "Ẩn",
+    "show": "Hiện",
+    "model_override": "Ghi đè mô hình (tùy chọn)",
+    "fetching": "Đang tải...",
+    "select_model": "Chọn mô hình...",
+    "model_placeholder": "gpt-4o / gemini-1.5-pro",
+    "update_agent": "Cập nhật trí tuệ agent",
+    "connected": "Đã kết nối",
+    "ready_to_link": "Sẵn sàng liên kết",
+    "revoke_access": "Thu hồi quyền",
+    "configure": "Cấu hình",
+    "integration_key": "Nhập khóa tích hợp",
+    "finish_linking": "Hoàn tất liên kết",
+    "languages": {
+      "en": "English (US)",
+      "vi": "Tiếng Việt (VN)"
+    },
+    "providers": {
+      "gemini": "Google Gemini",
+      "openai": "OpenAI / Tương thích",
+      "anthropic": "Anthropic Claude"
+    },
+    "colors": {
+      "red": "Đỏ",
+      "pink": "Hồng",
+      "blue": "Xanh dương",
+      "yellow": "Vàng",
+      "green": "Xanh lá",
+      "contrast": "Tương phản"
+    },
+    "tabs": {
+      "profile": { "label": "Hồ sơ", "desc": "Quản lý định danh công khai của bạn." },
+      "interface": { "label": "Giao diện", "desc": "Thiết lập hình thức và tỷ lệ hiển thị." },
+      "security": { "label": "Bảo mật", "desc": "Khóa truy cập và bảo vệ bằng mật khẩu." },
+      "agent": { "label": "Agent", "desc": "Cấu hình AI cá nhân của bạn." },
+      "channel": { "label": "Kênh", "desc": "Các kết nối cầu nối bên ngoài." }
+    },
+    "notifications": {
+      "avatar_updated": "Cập nhật ảnh đại diện thành công",
+      "avatar_failed": "Tải ảnh đại diện thất bại",
+      "code_sent": "Đã gửi mã xác minh đến {email}",
+      "code_failed": "Gửi mã thất bại: {error}",
+      "email_updated": "Cập nhật email thành công",
+      "verification_failed": "Xác minh thất bại: {error}",
+      "profile_updated": "Cập nhật hồ sơ thành công",
+      "update_failed": "Cập nhật thất bại: {error}",
+      "password_mismatch": "Mật khẩu không khớp",
+      "password_updated": "Đổi mật khẩu thành công",
+      "password_failed": "Cập nhật mật khẩu thất bại: {error}",
+      "agent_updated": "Đã cập nhật trí tuệ agent",
+      "agent_failed": "Cập nhật agent thất bại: {error}",
+      "api_key_required": "Cần API Key để tải mô hình",
+      "models_fetched": "Đã tải {count} mô hình",
+      "no_models": "Nhà cung cấp không trả về mô hình nào",
+      "fetch_failed": "Tải thất bại: {error}",
+      "channel_connected": "{name} đã kết nối",
+      "channel_failed": "Không thể liên kết {name}"
+    }
   },
   "actions": {
     "save": "Lưu thay đổi",
     "cancel": "Hủy",
     "delete": "Xóa",
-    "close": "Đóng"
+    "close": "Đóng",
+    "sending": "Đang gửi...",
+    "exit": "Thoát"
+  },
+  "support": {
+    "title": "Liên hệ Hỗ trợ",
+    "description": "Cần hỗ trợ? Chọn một chủ đề và mô tả yêu cầu của bạn. Nhân viên hỗ trợ của chúng tôi sẽ xử lý kịp thời.",
+    "type": "Loại hỗ trợ",
+    "types": {
+      "feature_request": "Yêu cầu tính năng",
+      "feature_error": "Lỗi tính năng",
+      "security_error": "Lỗi bảo mật",
+      "others": "Khác"
+    },
+    "subject": "Tiêu đề",
+    "subject_placeholder": "Tóm tắt ngắn gọn...",
+    "message": "Tin nhắn",
+    "placeholder": "Hãy cho chúng tôi biết suy nghĩ của bạn...",
+    "send": "Gửi",
+    "success": "Gửi phiếu hỗ trợ thành công!",
+    "error": "Hệ thống hỗ trợ hiện không khả dụng. Vui lòng thử lại sau."
   }
 }

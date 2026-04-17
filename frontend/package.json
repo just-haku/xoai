@@ -9,10 +9,16 @@
         "preview": "vite preview"
     },
     "dependencies": {
-        "vue": "^3.4.21",
-        "vue-router": "^4.3.0",
+        "@tiptap/starter-kit": "^3.22.3",
+        "@tiptap/vue-3": "^3.22.3",
+        "ag-grid-community": "^35.2.1",
+        "ag-grid-vue3": "^35.2.1",
+        "cropperjs": "^2.1.1",
+        "monaco-editor": "^0.55.1",
         "pinia": "^2.1.7",
-        "vue-i18n": "^9.10.1"
+        "vue": "^3.4.21",
+        "vue-i18n": "^9.10.1",
+        "vue-router": "^4.3.0"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^5.0.4",

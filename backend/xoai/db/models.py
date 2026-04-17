@@ -7,14 +7,17 @@ from pydantic import BaseModel, Field
 
 
 class UserDoc(BaseModel):
-    email: str
+    username: str = ""
+    email: Optional[str] = None
     password_hash: str
     name: str
     role: str = "user"  # admin | user
     status: str = "pending"  # pending | approved | disabled
     email_verified: bool = False
     quota_used_bytes: int = 0
+    quota_limit_bytes: int = 5 * 1024 * 1024 * 1024  # Default 5GB
     lang: str = "EN"  # EN | VI
+    active_work_chat_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -22,6 +25,13 @@ class SettingDoc(BaseModel):
     key: str  # e.g. "smtp", "agent_0_config", "fallback_pool", "tts_provider"
     value_encrypted: str  # Fernet-encrypted JSON string
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class BotInstanceDoc(BaseModel):
+    user_id: str
+    platform: str  # discord | telegram | zalo
+    token_encrypted: str
+    status: str = "active"  # active | error | suspended
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ApiKeyDoc(BaseModel):

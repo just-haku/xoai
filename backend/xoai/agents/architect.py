@@ -10,19 +10,11 @@ logger = logging.getLogger("xoai.agents.architect")
 from xoai.agents.base import BaseAgent
 from xoai.agents.llm_pool import get_agent_config
 from xoai.agents.tool_registry import create_admin_registry
+from xoai.prompts.manager import get_prompt
 
 logger = logging.getLogger("xoai.agents.architect")
 
-ARCHITECT_PROMPT = """
-You are XOAI ARCHITECT (Agent 1). Your job is to RESEARCH, ANALYZE, and PLAN.
-You have READ-ONLY access to the user's workspace.
-You should NOT attempt to write files or execute destructive commands.
-
-Rules:
-1. Provide comprehensive plans or analysis.
-2. Use tools to gather information before concluding.
-3. Be as detailed as possible in your architecture or logic breakdowns.
-"""
+# ARCHITECT_PROMPT moved to prompts folder
 
 async def plan(directive: str, conversation_id: str, user_id: str):
     """Process a planning directive with read-only tools."""
@@ -34,5 +26,5 @@ async def plan(directive: str, conversation_id: str, user_id: str):
     registry = create_admin_registry()
     # TODO: Filter registry for read-only tools if security is high
     
-    agent = BaseAgent("Agent 1", config, ARCHITECT_PROMPT, tools=registry)
+    agent = BaseAgent("Agent 1", config, get_prompt("architect"), tools=registry)
     return agent.chat(user_id, conversation_id, directive, [])
