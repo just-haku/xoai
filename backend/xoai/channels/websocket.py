@@ -41,8 +41,14 @@ async def chat_endpoint(websocket: WebSocket):
                     active_agent.last_input_response = msg_data.get("response") # 'allow' or 'deny'
                     active_agent.input_event.set()
                 continue
+            if m_type == "abort":
+                await websocket.send_json({"type": "generation_stopped"})
+                continue
 
             user_text = msg_data.get("text")
+            if not user_text:
+                await websocket.send_json({"type": "error", "message": "Message text is required."})
+                continue
             
             # Forward to supervisor
             # Note: We need a way to get the agent instance back or manage it here.

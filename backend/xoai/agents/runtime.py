@@ -47,7 +47,7 @@ async def run_query(
     channel: str = "web",
 ) -> AsyncIterator[dict]:
     history = await get_conversation_messages(conversation_id, limit=20)
-    await save_message(conversation_id, "user", message, channel_metadata={"channel": channel})
+    await save_message(conversation_id, "user", message, user_id=user["id"], channel_metadata={"channel": channel})
 
     plan = build_execution_plan(user, message, channel)
     query_id = await start_query_run(

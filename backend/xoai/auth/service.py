@@ -106,7 +106,14 @@ async def send_verification_email(to_email: str, code: str):
         msg["From"] = admin_email
         msg["To"] = to_email
         
-        msg.set_content(f"Your XOAI verification code is: {code}\n\nThis code will expire in 10 minutes.")
+        if code.startswith(("http://", "https://")):
+            msg.set_content(
+                "Verify your XOAI email address using this link:\n\n"
+                f"{code}\n\n"
+                "If you did not request this, ignore this message."
+            )
+        else:
+            msg.set_content(f"Your XOAI verification code is: {code}\n\nThis code will expire in 10 minutes.")
         
         await aiosmtplib.send(
             msg,

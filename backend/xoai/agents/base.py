@@ -70,23 +70,15 @@ class BaseAgent:
                     messages.append({"role": "assistant", "content": res["content"]})
                 
                 # check for tool calls
-                tool_calls = res.get("tool_calls")
+                tool_calls = _normalize_tool_calls(res.get("tool_calls"))
                 if not tool_calls:
                     # Final response
-                    await save_message(conversation_id, "assistant", res.get("content", ""))
+                    await save_message(conversation_id, "assistant", res.get("content", ""), user_id=user_id)
                     break
 
                 # 2. Execute tools
                 for tc in tool_calls:
-                    # ... [parsing tc]
-                    if hasattr(tc, "function"): 
-                        name = tc.function.name
-                        args = json.loads(tc.function.arguments)
-                        tc_id = getattr(tc, "id", name)
-                    else: 
-                        name = tc.name
-                        args = tc.args
-                        tc_id = name
+                    name, args, tc_id = _parse_tool_call(tc)
                     
                     # Check for HITL
                     tool_meta = self.tools.metadata.get(name, {})
@@ -126,3 +118,40 @@ class BaseAgent:
                 logger.error(f"Agent {self.name} error: {e}")
                 yield {"type": "error", "message": str(e)}
                 break
+
+
+def _normalize_tool_calls(tool_calls):
+    if not tool_calls:
+        return []
+    if isinstance(tool_calls, (list, tuple)):
+        return [call for call in tool_calls if call]
+    return [tool_calls]
+
+
+def _parse_tool_call(tool_call) -> tuple[str, dict, str]:
+    if isinstance(tool_call, dict):
+        function = tool_call.get("function") or {}
+        name = function.get("name") or tool_call.get("name")
+        raw_args = function.get("arguments", tool_call.get("args", {}))
+        tc_id = tool_call.get("id") or name
+    elif hasattr(tool_call, "function"):
+        name = tool_call.function.name
+        raw_args = tool_call.function.arguments
+        tc_id = getattr(tool_call, "id", name)
+    else:
+        name = tool_call.name
+        raw_args = getattr(tool_call, "args", {})
+        tc_id = name
+
+    if not name:
+        raise ValueError("Tool call missing name.")
+
+    if isinstance(raw_args, str):
+        args = json.loads(raw_args or "{}")
+    else:
+        args = raw_args or {}
+
+    if not isinstance(args, dict):
+        raise ValueError(f"Tool call '{name}' arguments must be an object.")
+
+    return name, args, tc_id

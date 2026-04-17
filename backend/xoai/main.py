@@ -3,9 +3,10 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from xoai.auth.dependencies import require_admin
 from xoai.db.mongo import connect_mongo, close_mongo
 from xoai.db.redis import connect_redis, close_redis
 
@@ -64,7 +65,7 @@ def create_app() -> FastAPI:
         return {"status": "ok", "version": "1.0.0"}
 
     @app.post("/api/models/fetch")
-    async def fetch_models(data: dict):
+    async def fetch_models(data: dict, _=Depends(require_admin)):
         provider = data.get("provider")
         api_key = data.get("api_key")
         
@@ -77,9 +78,18 @@ def create_app() -> FastAPI:
         
         # Save to DB cache
         from xoai.db.mongo import db
+        cache_key = f"models_cache:{provider}"
         await db.settings.update_one(
-            {"type": "models_cache", "provider": provider},
-            {"$set": {"models": models, "updated_at": datetime.now(timezone.utc)}},
+            {"key": cache_key},
+            {
+                "$set": {
+                    "key": cache_key,
+                    "type": "models_cache",
+                    "provider": provider,
+                    "models": models,
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
             upsert=True
         )
         return {"status": "success", "models": models}

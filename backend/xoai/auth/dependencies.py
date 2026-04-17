@@ -45,12 +45,15 @@ async def get_current_user_ws(token: str):
     """Validate a token for WebSocket connections."""
     try:
         payload = decode_token(token)
+        if payload.get("type") != "access":
+            return None
         db = get_db()
         from bson import ObjectId
         user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
         if not user or user["status"] != "approved":
             return None
         user["id"] = str(user.pop("_id"))
+        user.pop("password_hash", None)
         return user
     except Exception:
         return None

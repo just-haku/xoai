@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://xoai-redis:6379/0"
     secret_key: str = "change-me"
     xoai_storage: str = "/app/storage"
+    public_base_url: str = "http://localhost:3080"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

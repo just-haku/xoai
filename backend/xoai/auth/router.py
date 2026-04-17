@@ -13,6 +13,7 @@ from xoai.auth.service import (
     decode_token,
 )
 from xoai.auth.dependencies import get_current_user
+from xoai.config import settings
 
 router = APIRouter()
 
@@ -54,7 +55,8 @@ async def register(req: RegisterRequest):
     # Trigger SMTP verification email
     from xoai.auth.service import send_verification_email
     import asyncio
-    asyncio.create_task(send_verification_email(req.email, token))
+    verification_link = f"{settings.public_base_url.rstrip('/')}/api/auth/verify-email?token={token}"
+    asyncio.create_task(send_verification_email(req.email, verification_link))
 
     return {
         "message": "Registration successful. Please verify your email.",
