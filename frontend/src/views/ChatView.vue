@@ -10,9 +10,12 @@ import ChatMessage from '../components/ChatMessage.vue'
 import FilePreviewOverlay from '../components/FilePreviewOverlay.vue'
 import { api } from '../services/api'
 import { useI18n } from 'vue-i18n'
+import { clearActiveSession } from '../services/session'
+import { useSessionStore } from '../stores/session'
 
 const chatStore = useChatStore()
 const uiStore = useUIStore()
+const sessionStore = useSessionStore()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
@@ -31,6 +34,8 @@ const currentChatTitle = computed(() => {
   if (!chat || !chat.title) return t('chat.view.new_chat_title')
   return t('chat.view.chat_title', { title: chat.title })
 })
+const isGodMode = computed(() => sessionStore.godMode)
+const godModeUserLabel = computed(() => sessionStore.proxiedUserLabel || user.value?.name || user.value?.username || '')
 
 // Mode detection based on route
 const currentMode = computed(() => route.name === 'workspace' ? 'workspace' : 'chat')
@@ -59,6 +64,10 @@ const scrollToBottom = async () => {
 watch(() => chatStore.messages.length, scrollToBottom)
 
 const sendMessage = async () => {
+  if (isGodMode.value) {
+    uiStore.notify(t('god_mode.chat_read_only_notice'), 'warning')
+    return
+  }
   if (!newMessage.value.trim() && attachments.value.length === 0) return
   const text = newMessage.value
   const files = [...attachments.value]
@@ -73,7 +82,7 @@ const handleEnterKey = (e) => {
 }
 
 const logout = () => {
-  localStorage.removeItem('xoai_token')
+  clearActiveSession()
   router.push('/')
 }
 
@@ -296,7 +305,7 @@ onMounted(() => {
     <aside class="sidebar glass-panel">
       <div class="sidebar-header">
         <div class="brand">XO<span class="mango-text">AI</span></div>
-        <button class="new-chat-btn" @click="chatStore.newChat" :title="$t('chat.new_chat')">
+        <button class="new-chat-btn" :disabled="isGodMode" @click="!isGodMode && chatStore.newChat?.()" :title="$t('chat.new_chat')">
           <svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
         </button>
       </div>
@@ -358,6 +367,9 @@ onMounted(() => {
 
     <!-- Main Content -->
     <main class="chat-main">
+      <div v-if="isGodMode" class="god-mode-readout glass-panel">
+        {{ t('god_mode.banner', { user: godModeUserLabel }) }}
+      </div>
       <header class="top-bar glass-panel">
         <div class="left">
           <h2 class="session-title">{{ chatStore.currentChatTitle || $t('chat.default_title') }}</h2>
@@ -465,7 +477,10 @@ onMounted(() => {
           </div>
 
           <footer class="input-area-gemini">
-             <div class="pill-input-wrapper glass-panel">
+             <div v-if="isGodMode" class="god-mode-chat-lock glass-panel">
+                {{ t('god_mode.chat_read_only_notice') }}
+             </div>
+             <div v-else class="pill-input-wrapper glass-panel">
                 <button class="pill-btn" @click="fileInput.click()">
                   <svg viewBox="0 0 24 24"><path d="M16.5,6V17.5A4,4 0 0,1 12.5,21.5A4,4 0 0,1 8.5,17.5V5A2.5,2.5 0 0,1 11,2.5A2.5,2.5 0 0,1 13.5,5V15.5A1,1 0 0,1 12.5,16.5A1,1 0 0,1 11.5,15.5V6H10V15.5A2.5,2.5 0 0,0 12.5,18A2.5,2.5 0 0,0 12.5,18.5V5A4,4 0 0,0 11,1A4,4 0 0,0 7,5V17.5A5.5,5.5 0 0,0 12.5,23A5.5,5.5 0 0,0 18,17.5V6H16.5Z"/></svg>
                 </button>
@@ -572,6 +587,7 @@ onMounted(() => {
 }
 .new-chat-btn svg { width: 20px; fill: currentColor; }
 .new-chat-btn:hover { border-color: var(--mango-primary); color: var(--mango-primary); }
+.new-chat-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .sidebar-search { padding: 0 16px 16px; }
 .search-input-wrapper {
@@ -626,6 +642,16 @@ onMounted(() => {
   position: relative; 
   z-index: 10; 
   overflow: hidden; 
+}
+.god-mode-readout {
+  margin: 12px 12px 0;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 170, 0, 0.25);
+  background: rgba(255, 170, 0, 0.08);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
 }
 .top-bar { 
   height: 60px; 
@@ -697,6 +723,15 @@ body.dock-target .top-bar {
 
 /* Input Gemini Style */
 .input-area-gemini { padding: 0 60px 48px; flex-shrink: 0; }
+.god-mode-chat-lock {
+  padding: 16px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 170, 0, 0.25);
+  background: rgba(255, 170, 0, 0.08);
+  color: var(--text-primary);
+  text-align: center;
+  font-weight: 700;
+}
 .pill-input-wrapper { background: var(--bg-tertiary); border-radius: 36px; border: 1px solid var(--border-strong); display: flex; align-items: flex-end; padding: 12px 20px; gap: 16px; transition: all 0.3s; }
 .pill-input-wrapper:focus-within { border-color: var(--mango-primary); box-shadow: 0 0 40px rgba(0, 255, 136, 0.1); }
 

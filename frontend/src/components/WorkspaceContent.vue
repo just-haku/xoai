@@ -4,6 +4,7 @@ import { api } from '../services/api'
 import { useUIStore } from '../stores/ui'
 import ContextMenu from './ContextMenu.vue'
 import { useI18n } from 'vue-i18n'
+import { buildViewerUrl } from '../services/session'
 
 const props = defineProps({
   currentPath: {
@@ -64,14 +65,21 @@ const handleContextMenu = (e, file) => {
 }
 
 const openInNewTab = (file) => {
-  window.open(`/view-file?path=${encodeURIComponent(file.path)}`, '_blank')
+  window.open(buildViewerUrl(file.path), '_blank', 'noopener')
 }
 
-const downloadFile = (file) => {
-  const link = document.createElement('a')
-  link.href = `/api/workspace/files/read?path=${encodeURIComponent(file.path)}&download=true`
-  link.download = file.name
-  link.click()
+const downloadFile = async (file) => {
+  try {
+    const blob = await api.requestBlob(`/workspace/files/read?path=${encodeURIComponent(file.path)}&download=true`)
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = file.name
+    link.click()
+    URL.revokeObjectURL(objectUrl)
+  } catch (err) {
+    uiStore.notify(t('workspace.notifications.download_failed', { error: err.message }), 'danger')
+  }
 }
 
 const handleDrop = async (e) => {

@@ -1,5 +1,6 @@
 """Admin dashboard routes: settings CRUD, stats."""
 
+import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -7,6 +8,7 @@ from typing import Optional, Any
 
 from bson import ObjectId
 from xoai.auth.dependencies import require_admin
+from xoai.auth.service import create_proxy_handoff
 from xoai.admin import service
 from xoai.agents.evolution import (
     evaluate_prompt_candidate,
@@ -21,11 +23,23 @@ from xoai.agents.experience_consolidator import apply_consolidation_action, list
 from xoai.db.mongo import get_db
 
 router = APIRouter()
+logger = logging.getLogger("xoai.admin")
 
 
 class SettingUpdate(BaseModel):
     key: str
     value: dict
+
+
+def _serialize_user_summary(user: dict) -> dict:
+    return {
+        "id": str(user["_id"]),
+        "email": user["email"],
+        "username": user.get("username", ""),
+        "name": user.get("name", ""),
+        "role": user.get("role", "user"),
+        "status": user.get("status", "pending"),
+    }
 
 
 @router.get("/settings")
@@ -119,6 +133,37 @@ async def update_user_quota(user_id: str, req: QuotaUpdate, _=Depends(require_ad
     if result.matched_count == 0:
         raise HTTPException(404, "User not found")
     return {"message": "Quota updated"}
+
+
+@router.post("/users/{user_id}/proxy-session")
+async def create_user_proxy_session(user_id: str, admin: dict = Depends(require_admin)):
+    db = get_db()
+    try:
+        object_id = ObjectId(user_id)
+    except Exception as exc:
+        raise HTTPException(404, "User not found") from exc
+
+    target_user = await db.users.find_one({"_id": object_id})
+    if not target_user:
+        raise HTTPException(404, "User not found")
+    if target_user.get("status") != "approved":
+        raise HTTPException(409, "User is not available for proxy sessions")
+
+    handoff = await create_proxy_handoff(str(target_user["_id"]), target_user.get("role", "user"), admin["id"])
+    logger.info(
+        "Created proxy session handoff",
+        extra={
+            "admin_id": admin["id"],
+            "target_user_id": str(target_user["_id"]),
+            "session_id": handoff["session_id"],
+        },
+    )
+    return {
+        "handoff_token": handoff["handoff_token"],
+        "expires_at": handoff["expires_at"].isoformat(),
+        "session_id": handoff["session_id"],
+        "user": _serialize_user_summary(target_user),
+    }
 
 
 @router.get("/stats")

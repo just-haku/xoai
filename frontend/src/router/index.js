@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
+import { hasActiveSession, hasPendingGodModeBridge, hasPendingGodModeHandoff } from '../services/session'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -59,7 +60,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-    const isAuthenticated = !!localStorage.getItem('xoai_token')
+    const isAuthenticated = hasActiveSession() || hasPendingGodModeHandoff(to) || hasPendingGodModeBridge(to)
     
     if (to.meta.requiresAuth && !isAuthenticated) {
         next({ name: 'landing' })

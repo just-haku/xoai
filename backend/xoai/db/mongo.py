@@ -27,6 +27,8 @@ async def connect_mongo():
     await _db.refresh_sessions.create_index("session_id", unique=True)
     await _db.refresh_sessions.create_index([("user_id", 1), ("revoked_at", 1)])
     await _db.refresh_sessions.create_index("expires_at", expireAfterSeconds=0)
+    await _db.proxy_handoffs.create_index("token_hash", unique=True)
+    await _db.proxy_handoffs.create_index("expires_at", expireAfterSeconds=0)
     await _db.verification_codes.create_index([("user_id", 1), ("type", 1)], unique=True)
     await _db.verification_codes.create_index("expires_at", expireAfterSeconds=0)
     await _db.password_reset_tokens.create_index("token_hash", unique=True)

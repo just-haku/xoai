@@ -12,11 +12,13 @@ from xoai.auth.dependencies import get_current_user
 from xoai.auth.service import (
     AuthError,
     consume_password_reset_token,
+    consume_proxy_handoff,
     create_access_token,
     create_password_reset_token,
     create_refresh_session,
     generate_numeric_code,
     hash_password,
+    PROXY_ACCESS_TOKEN_EXPIRE_MINUTES,
     revoke_all_refresh_sessions,
     revoke_refresh_session,
     rotate_refresh_session,
@@ -79,6 +81,11 @@ class PasswordResetConfirmRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=16, max_length=4096)]
     password: str = Field(min_length=8)
+
+
+class ProxyExchangeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    handoff_token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=16, max_length=4096)]
 
 
 @router.post("/register")
@@ -189,6 +196,37 @@ async def refresh(req: RefreshRequest, request: Request):
         "access_token": create_access_token(rotated["user_id"], user["role"], rotated["session_id"]),
         "refresh_token": rotated["refresh_token"],
         "session_id": rotated["session_id"],
+        "user": _user_payload(user),
+    }
+
+
+@router.post("/proxy/exchange")
+async def exchange_proxy_session(req: ProxyExchangeRequest, request: Request):
+    rate_limiter.enforce(build_client_key(request, "auth.proxy_exchange"), 20, 60, "Too many proxy exchange attempts")
+    try:
+        handoff = await consume_proxy_handoff(req.handoff_token)
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+    db = get_db()
+    user = await db.users.find_one({"_id": ObjectId(handoff["user_id"])})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user["status"] != "approved":
+        raise HTTPException(status_code=403, detail="Account pending approval")
+
+    access_token = create_access_token(
+        str(user["_id"]),
+        user["role"],
+        handoff["session_id"],
+        expires_minutes=PROXY_ACCESS_TOKEN_EXPIRE_MINUTES,
+        extra_claims={"proxy_by": handoff["proxy_by"]},
+    )
+    metrics.incr("auth.proxy_exchange_success")
+    return {
+        "access_token": access_token,
+        "session_id": handoff["session_id"],
+        "proxy_by": handoff["proxy_by"],
         "user": _user_payload(user),
     }
 

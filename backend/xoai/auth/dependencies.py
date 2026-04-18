@@ -29,6 +29,8 @@ async def get_current_user(
 
     user["id"] = str(user.pop("_id"))
     user["session_id"] = payload.get("session_id")
+    user["proxy_by"] = payload.get("proxy_by")
+    user["is_proxy_session"] = bool(payload.get("proxy_by"))
     user.pop("password_hash", None)
     return user
 
@@ -51,6 +53,8 @@ async def get_current_user_ws(token: str):
             return None
         user["id"] = str(user.pop("_id"))
         user["session_id"] = payload.get("session_id")
+        user["proxy_by"] = payload.get("proxy_by")
+        user["is_proxy_session"] = bool(payload.get("proxy_by"))
         user.pop("password_hash", None)
         return user
     except AuthError:

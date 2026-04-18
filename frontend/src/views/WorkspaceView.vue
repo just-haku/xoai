@@ -8,6 +8,7 @@ import { useUIStore } from '../stores/ui'
 import GlobalSettingsHub from '../components/GlobalSettingsHub.vue'
 import ToolCog from '../components/ToolCog.vue'
 import { useI18n } from 'vue-i18n'
+import { clearActiveSession } from '../services/session'
 
 const chatStore = useChatStore()
 const uiStore = useUIStore()
@@ -38,7 +39,7 @@ const handleProfile = () => {
 const handleSupport = () => console.log('Support Click')
 
 const logout = () => {
-  localStorage.removeItem('xoai_token')
+  clearActiveSession()
   router.push('/login')
 }
 

@@ -42,6 +42,19 @@ async def chat_endpoint(websocket: WebSocket):
             msg_data = await websocket.receive_json()
             m_type = msg_data.get("type")
             
+            if user.get("proxy_by") and m_type in {"message", "input_response"}:
+                logger.warning(
+                    "Blocked God Mode chat write over websocket",
+                    extra={
+                        "proxy_by": user.get("proxy_by"),
+                        "target_user_id": user["id"],
+                        "conversation_id": conversation_id,
+                    },
+                )
+                metrics.incr("ws.proxy_chat_blocked")
+                await websocket.send_json({"type": "error", "message": "Chat is read-only in God Mode."})
+                continue
+
             if m_type == "input_response":
                 if active_agent and hasattr(active_agent, "input_event"):
                     active_agent.last_input_response = msg_data.get("response") # 'allow' or 'deny'

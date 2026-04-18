@@ -8,6 +8,7 @@ import MonacoEditor from '../components/viewers/MonacoEditor.vue'
 import DocxEditor from '../components/viewers/DocxEditor.vue'
 import XlsxViewer from '../components/viewers/XlsxViewer.vue'
 import ImageViewer from '../components/viewers/ImageViewer.vue'
+import { hasActiveSession } from '../services/session'
 
 const route = useRoute()
 const router = useRouter()
@@ -33,7 +34,7 @@ const getViewerType = (name) => {
 
 const loadFile = async () => {
   if (!path.value) return
-  if (!localStorage.getItem('xoai_token')) {
+  if (!hasActiveSession()) {
     router.replace({ name: 'landing' })
     return
   }

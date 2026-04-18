@@ -1,6 +1,13 @@
 /* API Service — Frontend-to-Backend communication */
 
+import { getActiveToken } from './session'
+
 const API_BASE = '/api'
+
+const parseErrorResponse = async (res) => {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.detail || 'Request failed')
+}
 
 export const api = {
     async request(endpoint, options = {}) {
@@ -11,7 +18,7 @@ export const api = {
             headers['Content-Type'] = 'application/json'
         }
 
-        const token = localStorage.getItem('xoai_token')
+        const token = getActiveToken()
         if (token) headers['Authorization'] = `Bearer ${token}`
 
         const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -20,15 +27,14 @@ export const api = {
         })
 
         if (!res.ok) {
-            const error = await res.json()
-            throw new Error(error.detail || 'Request failed')
+            await parseErrorResponse(res)
         }
 
         return res.json()
     },
 
     authHeaders() {
-        const token = localStorage.getItem('xoai_token')
+        const token = getActiveToken()
         return token ? { Authorization: `Bearer ${token}` } : {}
     },
 
@@ -39,8 +45,7 @@ export const api = {
             headers,
         })
         if (!res.ok) {
-            const error = await res.json().catch(() => ({}))
-            throw new Error(error.detail || 'Request failed')
+            await parseErrorResponse(res)
         }
         return res.text()
     },
@@ -52,8 +57,7 @@ export const api = {
             headers,
         })
         if (!res.ok) {
-            const error = await res.json().catch(() => ({}))
-            throw new Error(error.detail || 'Request failed')
+            await parseErrorResponse(res)
         }
         return res.blob()
     },
@@ -109,6 +113,9 @@ export const api = {
         updateQuota: (userId, limitBytes) => api.request(`/admin/users/${userId}/quota`, {
             method: 'PUT',
             body: JSON.stringify({ limit_bytes: limitBytes }),
+        }),
+        createProxySession: (userId) => api.request(`/admin/users/${userId}/proxy-session`, {
+            method: 'POST',
         }),
         listQueryRuns: () => api.request('/admin/query-runs'),
         getQueryRun: (queryId) => api.request(`/admin/query-runs/${queryId}`),

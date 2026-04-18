@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Any
-from xoai.auth.router import get_current_user
+from xoai.auth.dependencies import get_current_user
 from xoai.db.mongo import db
 import uuid
 from datetime import datetime, timezone
@@ -8,6 +8,11 @@ from bson import ObjectId
 from pydantic import BaseModel
 
 router = APIRouter()
+
+
+def _ensure_chat_write_allowed(user: dict) -> None:
+    if user.get("proxy_by"):
+        raise HTTPException(status_code=403, detail="Chat is read-only in God Mode")
 
 
 class ForkChatRequest(BaseModel):
@@ -46,6 +51,7 @@ async def get_chat_messages(chat_id: str, user: dict = Depends(get_current_user)
 
 @router.post("/{chat_id}/fork")
 async def fork_chat(chat_id: str, data: ForkChatRequest | None = None, user: dict = Depends(get_current_user)):
+    _ensure_chat_write_allowed(user)
     # Legacy fork (copy all) or Fork-at (copy up to index)
     index = data.index if data else None
     new_content = data.content if data else None
@@ -88,6 +94,7 @@ async def fork_chat(chat_id: str, data: ForkChatRequest | None = None, user: dic
 
 @router.patch("/{chat_id}")
 async def rename_chat(chat_id: str, data: RenameChatRequest, user: dict = Depends(get_current_user)):
+    _ensure_chat_write_allowed(user)
     title = data.title
     if not title:
         raise HTTPException(status_code=400, detail="Title required")
@@ -102,6 +109,7 @@ async def rename_chat(chat_id: str, data: RenameChatRequest, user: dict = Depend
 
 @router.delete("/{chat_id}")
 async def delete_chat(chat_id: str, user: dict = Depends(get_current_user)):
+    _ensure_chat_write_allowed(user)
     result = await db.conversations.delete_one({"chat_id": chat_id, "user_id": user["id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Chat not found")

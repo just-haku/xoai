@@ -394,6 +394,7 @@
         "last_act": "Last Act",
         "active_ws": "Active WS",
         "mirror": "Mirror",
+        "opening": "Opening...",
         "logs": "Logs",
         "mirror_desktop": "Mirror Desktop",
         "audit_logs": "Audit Logs"
@@ -417,6 +418,8 @@
         "user_suspended": "Access revoked for {user}",
         "revoke_failed": "Revoke failed: {error}",
         "action_initiated": "{action} initiated for {target}",
+        "god_mode_opened": "Opened God Mode for {user}",
+        "god_mode_failed": "Failed to open God Mode: {error}",
         "runtime_load_failed": "Failed to load runtime telemetry: {error}",
         "mcp_load_failed": "Failed to load MCP servers: {error}",
         "mcp_name_command_required": "MCP name and command are required",
@@ -501,6 +504,12 @@
       }
     }
   },
+  "god_mode": {
+    "banner": "GOD MODE: Viewing as {user}. Workspace is Read/Write. Chats are Read-Only.",
+    "chat_read_only_notice": "Chat is read-only in God Mode.",
+    "bootstrapping": "Preparing secure God Mode session...",
+    "bootstrap_failed": "Failed to initialize God Mode session."
+  },
   "workspace": {
     "files": "Workspace",
     "upload": "Upload File",
@@ -544,6 +553,7 @@
     "notifications": {
       "load_failed": "Failed to load workspace: {error}",
       "upload_failed": "Upload failed: {error}",
+      "download_failed": "Download failed: {error}",
       "upload_complete": "Uploaded {count} file(s)"
     }
   },

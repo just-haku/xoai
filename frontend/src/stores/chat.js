@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { getActiveToken } from '../services/session'
 
 export const useChatStore = defineStore('chat', () => {
     const messages = ref([])
@@ -19,7 +20,7 @@ export const useChatStore = defineStore('chat', () => {
         ws.value.onopen = () => {
             console.log('Chat WebSocket connected')
             ws.value.send(JSON.stringify({
-                token: localStorage.getItem('xoai_token'),
+                token: getActiveToken(),
                 conversation_id: conversationId
             }))
         }
@@ -102,7 +103,7 @@ export const useChatStore = defineStore('chat', () => {
             try {
                 const response = await fetch(`/api/tickets/${ticketId}/approve`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('xoai_token')}` }
+                    headers: { 'Authorization': `Bearer ${getActiveToken()}` }
                 })
                 if (!response.ok) throw new Error('Approval failed')
             } catch (err) {

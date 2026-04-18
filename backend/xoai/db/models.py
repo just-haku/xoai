@@ -90,6 +90,17 @@ class RefreshSessionDoc(BaseModel):
     ip: Optional[str] = None
 
 
+class ProxyHandoffDoc(BaseModel):
+    user_id: str
+    role: str
+    proxy_by: str
+    session_id: str
+    token_hash: str
+    consumed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+
+
 class BackgroundJobDoc(BaseModel):
     type: str
     status: str = "queued"

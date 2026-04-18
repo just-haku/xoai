@@ -1,4 +1,5 @@
 import asyncio
+import pytest
 
 from xoai.auth import service as auth_service
 
@@ -53,6 +54,7 @@ class FakeDb:
         self.refresh_sessions = FakeCollection()
         self.verification_codes = FakeCollection()
         self.password_reset_tokens = FakeCollection()
+        self.proxy_handoffs = FakeCollection()
 
 
 def test_refresh_session_rotates_and_revokes(monkeypatch):
@@ -99,5 +101,33 @@ def test_verification_codes_are_hashed_and_consumed(monkeypatch):
             code="123456",
         )
         assert fake_db.verification_codes.docs == []
+
+    asyncio.run(scenario())
+
+
+def test_proxy_handoff_is_single_use_and_preserves_proxy_claim(monkeypatch):
+    fake_db = FakeDb()
+    import xoai.db.mongo
+
+    monkeypatch.setattr(xoai.db.mongo, "get_db", lambda: fake_db)
+
+    async def scenario():
+        handoff = await auth_service.create_proxy_handoff("user-1", "user", "admin-1")
+        consumed = await auth_service.consume_proxy_handoff(handoff["handoff_token"])
+        assert consumed["proxy_by"] == "admin-1"
+        assert consumed["session_id"] == handoff["session_id"]
+
+        token = auth_service.create_access_token(
+            "user-1",
+            "user",
+            consumed["session_id"],
+            expires_minutes=auth_service.PROXY_ACCESS_TOKEN_EXPIRE_MINUTES,
+            extra_claims={"proxy_by": consumed["proxy_by"]},
+        )
+        payload = auth_service.decode_token(token, expected_type="access")
+        assert payload["proxy_by"] == "admin-1"
+
+        with pytest.raises(auth_service.AuthError):
+            await auth_service.consume_proxy_handoff(handoff["handoff_token"])
 
     asyncio.run(scenario())

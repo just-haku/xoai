@@ -111,9 +111,7 @@ This pass covered backend hardening, channel attachment resilience, frontend wor
 
 ## Warnings / Non-Blocking Issues
 
-- Frontend build still emits the existing Vite warning about `frontend/src/i18n/index.js` being both dynamically and statically imported.
 - Frontend build still emits chunk-size warnings, primarily from Monaco/ImageViewer bundles. Build succeeds, but bundle splitting can be improved later.
-- `backend/=1.0` exists in the worktree and was left untouched because it appears unrelated to this pass.
 - Discord outbound file sending currently uses a short-lived client login flow. It is functional but heavier than a persistent shared client or webhook-based approach.
 - Telegram/Discord attachment support was implemented conservatively around the currently installed SDKs. If production traffic is high, this should be followed by dedicated transport/load testing.
 
@@ -150,3 +148,71 @@ This pass covered backend hardening, channel attachment resilience, frontend wor
 - No blocking test failures remained at end of run.
 - No blocking frontend build failures remained at end of run.
 - Remaining issues are warnings only and are listed above.
+
+## Operation Daybreak
+
+### Summary
+
+- Implemented Admin God Mode with JWT proxying through a short-lived, one-time handoff exchange.
+- Preserved the admin's primary `localStorage` session in the original tab.
+- Enforced read-only chat behavior for proxied sessions in both the frontend and backend.
+- Finished the cleanup follow-up by removing the stray `backend/=1.0` artifact and eliminating the Vite i18n dynamic-import warning.
+
+### Backend Changes
+
+- Added `POST /api/admin/users/{user_id}/proxy-session` in `backend/xoai/admin/router.py`.
+- Added `POST /api/auth/proxy/exchange` in `backend/xoai/auth/router.py`.
+- Extended access-token creation in `backend/xoai/auth/service.py` to support extra claims and custom TTLs.
+- Added one-time proxy handoff persistence with TTL-backed Mongo indexes in:
+  - `backend/xoai/db/models.py`
+  - `backend/xoai/db/mongo.py`
+- Propagated `proxy_by` and `is_proxy_session` through:
+  - `backend/xoai/auth/dependencies.py`
+  - `backend/xoai/channels/websocket.py`
+  - `backend/xoai/chats/router.py`
+- Added backend blocking for proxied chat writes:
+  - websocket `message` and `input_response`
+  - chat fork/rename/delete REST mutations
+
+### Frontend Changes
+
+- Added centralized session isolation helpers in `frontend/src/services/session.js`.
+- Added explicit session state in `frontend/src/stores/session.js`.
+- Updated the router guard, API client, chat store, login flow, file viewer, and workspace content to use the active session resolver rather than hard-coded `localStorage.xoai_token`.
+- Wired the Admin Dashboard God Mode button to request a proxy handoff and open `/workspace?god_mode=true&handoff=...` in a new tab.
+- Added a top-level God Mode banner and boot-time hydration handling in `frontend/src/App.vue`.
+- Added a same-origin BroadcastChannel bridge for child file-viewer tabs opened from an existing God Mode workspace tab.
+- Hid the chat composer and attachment controls in `frontend/src/views/ChatView.vue` while keeping workspace access intact.
+
+### Cleanup and Build Results
+
+- Confirmed `frontend/src/router/index.js` already lazy-loaded `FileViewerPage`.
+- Confirmed `frontend/src/i18n/index.js` already used static locale imports.
+- Replaced the remaining dynamic locale import in `frontend/src/stores/ui.js` with a static import reference.
+- Removed `backend/=1.0`.
+
+### Additional Tests
+
+- Extended `backend/tests/test_auth_session_service.py` to cover one-time proxy handoffs and `proxy_by` token claims.
+- Extended `backend/tests/test_chats_router.py` to cover the God Mode chat write guard.
+
+### Daybreak Verification
+
+- Backend tests:
+  - `/home/haku/projects/1.xoai/.venv/bin/python -m pytest -q backend/tests`
+  - Result: `32 passed`
+- Frontend build:
+  - `npm run build`
+  - Result: success
+
+### Daybreak Architectural Decisions
+
+- Chose a one-time backend handoff exchange for the admin-to-user desktop transition instead of writing the proxy JWT directly into shared browser storage.
+- Kept God Mode access-token only. No refresh token is minted for proxy sessions.
+- Added BroadcastChannel-based child-tab session bridging for file viewer tabs opened from an already proxied workspace, avoiding fallback to the admin token.
+- Enforced chat read-only on the server, not just in the UI, so direct API or websocket calls cannot impersonate the user.
+
+### Remaining Non-Blocking Issues After Daybreak
+
+- Frontend build still emits chunk-size warnings, primarily from Monaco/ImageViewer bundles. The earlier i18n warning is gone.
+- The God Mode child-tab bridge depends on `BroadcastChannel`. Modern browsers support it, but older embedded environments may need a fallback if this app is deployed there.

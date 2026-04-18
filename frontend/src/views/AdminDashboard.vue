@@ -596,7 +596,9 @@
               <div class="a-stat"><span>{{ t('admin.dashboard.godmode.active_ws') }}</span><strong>2</strong></div>
             </div>
             <div class="audit-actions">
-              <button class="btn-micro" @click="mockAction(t('admin.dashboard.godmode.mirror_desktop'), u.username)">{{ t('admin.dashboard.godmode.mirror') }}</button>
+              <button class="btn-micro" :disabled="proxyLaunchingUserId === u.id || u.status !== 'approved'" @click="launchGodMode(u)">
+                {{ proxyLaunchingUserId === u.id ? t('admin.dashboard.godmode.opening') : t('admin.dashboard.godmode.mirror') }}
+              </button>
               <button class="btn-micro" @click="mockAction(t('admin.dashboard.godmode.audit_logs'), u.username)">{{ t('admin.dashboard.godmode.logs') }}</button>
             </div>
           </div>
@@ -615,6 +617,7 @@ import CSelect from '../components/common/CSelect.vue'
 
 const uiStore = useUIStore()
 const { t } = useI18n()
+const proxyLaunchingUserId = ref(null)
 
 const activeTab = ref('users')
 const tabs = computed(() => [
@@ -929,6 +932,23 @@ const formatSize = (bytes) => {
 
 const mockAction = (action, target) => {
     uiStore.notify(t('admin.dashboard.notifications.action_initiated', { action, target }), 'info')
+}
+
+const launchGodMode = async (user) => {
+  proxyLaunchingUserId.value = user.id
+  try {
+    const response = await api.admin.createProxySession(user.id)
+    const params = new URLSearchParams({
+      god_mode: 'true',
+      handoff: response.handoff_token,
+    })
+    window.open(`/workspace?${params.toString()}`, '_blank', 'noopener')
+    uiStore.notify(t('admin.dashboard.notifications.god_mode_opened', { user: user.name || user.username }), 'success')
+  } catch (err) {
+    uiStore.notify(t('admin.dashboard.notifications.god_mode_failed', { error: err.message }), 'danger')
+  } finally {
+    proxyLaunchingUserId.value = null
+  }
 }
 
 const fetchRuntimeData = async () => {

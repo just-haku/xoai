@@ -30,6 +30,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
+import { setPrimaryToken } from '../services/session'
 
 const identifier = ref('')
 const password = ref('')
@@ -42,7 +43,7 @@ const handleLogin = async () => {
   error.value = ''
   try {
     const data = await api.auth.login(identifier.value, password.value)
-    localStorage.setItem('xoai_token', data.access_token)
+    setPrimaryToken(data.access_token)
     router.push('/chat')
   } catch (e) {
     error.value = e.message

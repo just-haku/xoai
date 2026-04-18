@@ -29,6 +29,8 @@ _fernet = Fernet(_fernet_key)
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 30
+PROXY_ACCESS_TOKEN_EXPIRE_MINUTES = 10
+PROXY_HANDOFF_EXPIRE_MINUTES = 2
 EMAIL_VERIFICATION_EXPIRE_MINUTES = 15
 PASSWORD_RESET_EXPIRE_MINUTES = 30
 MAX_VERIFICATION_ATTEMPTS = 5
@@ -58,14 +60,23 @@ def _encode_token(payload: dict) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=JWT_ALGORITHM)
 
 
-def create_access_token(user_id: str, role: str, session_id: str) -> str:
+def create_access_token(
+    user_id: str,
+    role: str,
+    session_id: str,
+    *,
+    expires_minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES,
+    extra_claims: dict | None = None,
+) -> str:
     payload = {
         "sub": user_id,
         "role": role,
         "session_id": session_id,
-        "exp": utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        "exp": utcnow() + timedelta(minutes=expires_minutes),
         "type": "access",
     }
+    if extra_claims:
+        payload.update(extra_claims)
     return _encode_token(payload)
 
 
@@ -126,6 +137,70 @@ async def create_refresh_session(user_id: str, *, ip: str | None = None, user_ag
         }
     )
     return session_id, refresh_token
+
+
+async def create_proxy_handoff(
+    user_id: str,
+    role: str,
+    proxy_by: str,
+    *,
+    expires_minutes: int = PROXY_HANDOFF_EXPIRE_MINUTES,
+) -> dict:
+    from xoai.db.mongo import get_db
+
+    db = get_db()
+    handoff_token = secrets.token_urlsafe(32)
+    session_id = str(uuid.uuid4())
+    now = utcnow()
+    expires_at = now + timedelta(minutes=expires_minutes)
+    await db.proxy_handoffs.insert_one(
+        {
+            "user_id": user_id,
+            "role": role,
+            "proxy_by": proxy_by,
+            "session_id": session_id,
+            "token_hash": hash_token_value(handoff_token),
+            "consumed_at": None,
+            "created_at": now,
+            "expires_at": expires_at,
+        }
+    )
+    return {
+        "handoff_token": handoff_token,
+        "session_id": session_id,
+        "expires_at": expires_at,
+    }
+
+
+async def consume_proxy_handoff(handoff_token: str) -> dict:
+    from xoai.db.mongo import get_db
+
+    db = get_db()
+    token_hash = hash_token_value(handoff_token)
+    now = utcnow()
+    collection = db.proxy_handoffs
+    if hasattr(collection, "find_one_and_update"):
+        from pymongo import ReturnDocument
+
+        doc = await collection.find_one_and_update(
+            {
+                "token_hash": token_hash,
+                "consumed_at": None,
+                "expires_at": {"$gt": now},
+            },
+            {"$set": {"consumed_at": now}},
+            return_document=ReturnDocument.AFTER,
+        )
+    else:
+        doc = await collection.find_one({"token_hash": token_hash})
+        if doc and not doc.get("consumed_at") and doc.get("expires_at", now) > now:
+            await collection.update_one({"_id": doc["_id"]}, {"$set": {"consumed_at": now}})
+            doc["consumed_at"] = now
+        else:
+            doc = None
+    if not doc:
+        raise AuthError("proxy_handoff_invalid", "Invalid or expired proxy handoff token", 401)
+    return doc
 
 
 async def rotate_refresh_session(refresh_token: str, *, ip: str | None = None, user_agent: str | None = None) -> dict:
@@ -317,4 +392,3 @@ async def send_verification_email(to_email: str, code_or_link: str, *, subject: 
         logger.exception("SMTP send failed", extra={"email": to_email})
         metrics.incr("auth.email_failed")
         return False
-

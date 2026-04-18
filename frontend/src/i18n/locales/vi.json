@@ -394,6 +394,7 @@
         "last_act": "Hành động cuối",
         "active_ws": "WS hoạt động",
         "mirror": "Phản chiếu",
+        "opening": "Đang mở...",
         "logs": "Nhật ký",
         "mirror_desktop": "Phản chiếu màn hình",
         "audit_logs": "Kiểm tra nhật ký"
@@ -417,6 +418,8 @@
         "user_suspended": "Đã thu hồi quyền truy cập của {user}",
         "revoke_failed": "Thu hồi thất bại: {error}",
         "action_initiated": "{action} đã được khởi tạo cho {target}",
+        "god_mode_opened": "Đã mở God Mode cho {user}",
+        "god_mode_failed": "Không thể mở God Mode: {error}",
         "runtime_load_failed": "Tải telemetry runtime thất bại: {error}",
         "mcp_load_failed": "Tải MCP server thất bại: {error}",
         "mcp_name_command_required": "Tên và lệnh MCP là bắt buộc",
@@ -501,6 +504,12 @@
       }
     }
   },
+  "god_mode": {
+    "banner": "GOD MODE: Đang xem dưới tên {user}. Workspace có quyền đọc/ghi. Chat chỉ đọc.",
+    "chat_read_only_notice": "Chat chỉ đọc trong God Mode.",
+    "bootstrapping": "Đang chuẩn bị phiên God Mode bảo mật...",
+    "bootstrap_failed": "Không thể khởi tạo phiên God Mode."
+  },
   "workspace": {
     "files": "Không gian làm việc",
     "upload": "Tải tệp lên",
@@ -544,6 +553,7 @@
     "notifications": {
       "load_failed": "Không thể tải không gian làm việc: {error}",
       "upload_failed": "Tải tệp thất bại: {error}",
+      "download_failed": "Tải xuống thất bại: {error}",
       "upload_complete": "Đã tải lên {count} tệp"
     }
   },
