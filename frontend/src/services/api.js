@@ -27,6 +27,37 @@ export const api = {
         return res.json()
     },
 
+    authHeaders() {
+        const token = localStorage.getItem('xoai_token')
+        return token ? { Authorization: `Bearer ${token}` } : {}
+    },
+
+    async requestText(endpoint, options = {}) {
+        const headers = { ...options.headers, ...api.authHeaders() }
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            headers,
+        })
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}))
+            throw new Error(error.detail || 'Request failed')
+        }
+        return res.text()
+    },
+
+    async requestBlob(endpoint, options = {}) {
+        const headers = { ...options.headers, ...api.authHeaders() }
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            headers,
+        })
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}))
+            throw new Error(error.detail || 'Request failed')
+        }
+        return res.blob()
+    },
+
     auth: {
         login: (identifier, password) => api.request('/auth/login', {
             method: 'POST',
@@ -129,16 +160,20 @@ export const api = {
 
     workspace: {
         listFiles: () => api.request('/workspace/files'),
-        uploadFile: (file) => {
+        uploadFile: (file, path = '') => {
             const formData = new FormData()
             formData.append('file', file)
-            return fetch(`${API_BASE}/workspace/files/upload`, {
+            return fetch(`${API_BASE}/workspace/files/upload?path=${encodeURIComponent(path)}`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('xoai_token')}`,
-                },
+                headers: api.authHeaders(),
                 body: formData,
-            }).then(res => res.json())
+            }).then(async res => {
+                if (!res.ok) {
+                    const error = await res.json().catch(() => ({}))
+                    throw new Error(error.detail || 'Upload failed')
+                }
+                return res.json()
+            })
         }
     }
 }

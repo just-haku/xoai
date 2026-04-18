@@ -20,6 +20,7 @@ const loading = ref(true)
 const content = ref('')
 const excelData = ref({ rows: [], cols: [] })
 const viewerType = ref('none')
+const imageUrl = ref('')
 
 const getViewerType = (name) => {
   const ext = name.split('.').pop().toLowerCase()
@@ -32,6 +33,10 @@ const getViewerType = (name) => {
 
 const loadFile = async () => {
   if (!path.value) return
+  if (!localStorage.getItem('xoai_token')) {
+    router.replace({ name: 'landing' })
+    return
+  }
   loading.value = true
   viewerType.value = getViewerType(fileName.value)
   
@@ -49,8 +54,8 @@ const loadFile = async () => {
         cols: Object.keys(data.content[0] || {}).map(k => ({ field: k, headerName: k }))
       }
     } else if (viewerType.value === 'image') {
-       const data = await api.request(`/workspace/files/read?path=${encodeURIComponent(path.value)}&base64=true`)
-       content.value = `data:image/png;base64,${data.content}`
+       const blob = await api.requestBlob(`/workspace/files/read?path=${encodeURIComponent(path.value)}&download=true`)
+       imageUrl.value = URL.createObjectURL(blob)
     }
   } catch (err) {
     uiStore.notify('Error loading file: ' + err.message, 'danger')
@@ -117,7 +122,7 @@ onMounted(() => {
         <MonacoEditor v-if="viewerType === 'code'" v-model="content" @save="saveFile" />
         <DocxEditor v-else-if="viewerType === 'docx'" v-model="content" @save="saveFile" />
         <XlsxViewer v-else-if="viewerType === 'xlsx'" :rowData="excelData.rows" :columnDefs="excelData.cols" @save="saveFile" />
-        <ImageViewer v-else-if="viewerType === 'image'" :src="content" :fileName="fileName" />
+        <ImageViewer v-else-if="viewerType === 'image'" :src="imageUrl" :fileName="fileName" />
         <div v-else class="not-supported">
            <svg viewBox="0 0 24 24"><path d="M13,9V3.5L18.5,9M6,2C4.89,2 4,2.89 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/></svg>
            <h2>Unsupported File Format</h2>

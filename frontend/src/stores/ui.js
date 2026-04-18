@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
+import i18n from '../i18n'
 
 export const useUIStore = defineStore('ui', () => {
   const theme = ref(localStorage.getItem('xoai_theme') || 'light')
@@ -108,9 +109,7 @@ export const useUIStore = defineStore('ui', () => {
   const setLang = (val) => {
     lang.value = val
     localStorage.setItem('xoai_lang', val)
-    import('../i18n').then(module => {
-      module.default.global.locale.value = val
-    })
+    i18n.global.locale.value = val
   }
 
   const setScale = (val) => {
@@ -125,6 +124,37 @@ export const useUIStore = defineStore('ui', () => {
 
   const updateWindow = (id, state) => {
     windows.value[id] = { ...windows.value[id], ...state }
+    if (windows.value[id].floating) {
+      windows.value[id] = clampWindowToViewport(windows.value[id])
+    }
+    localStorage.setItem('xoai_windows', JSON.stringify(windows.value))
+  }
+
+  const viewportBounds = () => ({
+    width: window.innerWidth,
+    height: window.innerHeight
+  })
+
+  const clampWindowToViewport = (win) => {
+    const bounds = viewportBounds()
+    const next = { ...win }
+    next.w = Math.min(next.w, bounds.width - 20)
+    next.h = Math.min(next.h, bounds.height - 20)
+    next.x = Math.max(0, Math.min(next.x, bounds.width - next.w))
+    next.y = Math.max(0, Math.min(next.y, bounds.height - next.h))
+    return next
+  }
+
+  const snapWindow = (id, mode) => {
+    const bounds = viewportBounds()
+    const halfWidth = Math.floor(bounds.width / 2)
+    if (mode === 'left') {
+      windows.value[id] = { ...windows.value[id], floating: false, x: 0, y: 0, w: halfWidth, h: bounds.height, order: 1 }
+    } else if (mode === 'right') {
+      windows.value[id] = { ...windows.value[id], floating: false, x: halfWidth, y: 0, w: bounds.width - halfWidth, h: bounds.height, order: 2 }
+    } else if (mode === 'full') {
+      windows.value[id] = { ...windows.value[id], floating: false, x: 0, y: 0, w: bounds.width, h: bounds.height }
+    }
     localStorage.setItem('xoai_windows', JSON.stringify(windows.value))
   }
 
@@ -172,6 +202,6 @@ export const useUIStore = defineStore('ui', () => {
     theme, color, pastel, lang, scale, showSettings, showSupport, layout, windows, notice,
     notifications,
     setTheme, setColor, setPastel, setLang, setScale, setLayout, updateWindow, resetWindows, maximizeAll, minimizeAll,
-    apply, notify, removeNotification, closeNotice, handleSubmit, confirm, prompt 
+    clampWindowToViewport, snapWindow, apply, notify, removeNotification, closeNotice, handleSubmit, confirm, prompt 
   }
 })

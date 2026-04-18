@@ -2,10 +2,6 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import FileExplorer from './FileExplorer.vue'
 import WorkspaceContent from './WorkspaceContent.vue'
-import { api } from '../services/api'
-import { useUIStore } from '../stores/ui'
-
-const uiStore = useUIStore()
 
 const sidebarWidth = ref(250)
 const isDragging = ref(false)

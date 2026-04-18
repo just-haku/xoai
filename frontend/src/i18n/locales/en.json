@@ -528,7 +528,24 @@
     "hide_chat": "Hide Chat",
     "show_chat": "Show Chat",
     "personal_assistant": "Personal Assistant",
-    "type_to_chat": "Type to chat..."
+    "type_to_chat": "Type to chat...",
+    "root": "Root",
+    "actions": {
+      "open": "Open",
+      "open_new_tab": "Open in New Tab",
+      "download": "Download"
+    },
+    "states": {
+      "scanning": "Scanning Directory...",
+      "empty": "This folder is empty",
+      "drop_here": "Drop files here to upload",
+      "drop_to_upload": "Drop files to upload to {path}"
+    },
+    "notifications": {
+      "load_failed": "Failed to load workspace: {error}",
+      "upload_failed": "Upload failed: {error}",
+      "upload_complete": "Uploaded {count} file(s)"
+    }
   },
   "userSettings": {
     "back_to_workspace": "Back to Workspace",

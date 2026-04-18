@@ -4,6 +4,8 @@ import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from xoai.auth.dependencies import get_current_user_ws
 from xoai.agents.supervisor import process_message
+from xoai.metrics import metrics
+from xoai.utils.rate_limit import rate_limiter
 
 router = APIRouter()
 logger = logging.getLogger("xoai.channels.websocket")
@@ -23,12 +25,16 @@ async def chat_endpoint(websocket: WebSocket):
         token = data.get("token")
         user = await get_current_user_ws(token)
         if not user:
+            metrics.incr("ws.auth_failed")
             await websocket.close(code=1008)
             return
+        client_host = websocket.client.host if websocket.client else "unknown"
+        rate_limiter.enforce(f"ws.connect:{user['id']}:{client_host}", 20, 60, "Too many websocket connections")
 
         conversation_id = data.get("conversation_id", "default")
         
         logger.info(f"WebSocket connected: {user['id']}")
+        metrics.incr("ws.connected")
 
         active_agent = None
 
@@ -73,8 +79,10 @@ async def chat_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected.")
+        metrics.incr("ws.disconnected")
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
+        metrics.incr("ws.errors")
         try:
             await websocket.close()
         except:

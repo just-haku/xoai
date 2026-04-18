@@ -1,21 +1,36 @@
 """Workspace file browser API."""
 
+import base64
+import mimetypes
 import os
 from html import escape
 from pathlib import PurePath
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 from xoai.auth.dependencies import get_current_user
 from xoai.admin.service import get_setting
 from xoai.workspace.service import (
+    atomic_write_bytes,
+    enforce_file_size_limit,
+    ensure_not_workspace_root,
+    get_admin_workspace,
     get_user_workspace,
     resolve_safe_path,
     check_quota,
 )
+from xoai.config import settings
 
 router = APIRouter()
+
+
+class SaveTextFilePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(min_length=1, max_length=512)
+    content: str = Field(max_length=5 * 1024 * 1024)
 
 
 def _resolve_or_403(user_id: str, path: str, workspace: str | None = None) -> str:
@@ -33,20 +48,24 @@ def _safe_upload_filename(filename: str | None) -> str:
 
 
 def _ensure_not_workspace_root(path: str, workspace: str, operation: str) -> None:
-    if os.path.abspath(path) == os.path.abspath(workspace):
-        raise HTTPException(400, f"Refusing to {operation} the workspace root")
-
+    try:
+        ensure_not_workspace_root(path, workspace, operation)
+    except PermissionError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 async def get_effective_workspace(user: dict) -> str | None:
     """Return the base workspace path. Returns None for normal user-isolated path."""
     if user.get("role") == "admin":
-        setting = await get_setting("admin_workspace_path")
-        if setting:
-            # Setting might be {"path": "/..."} or just a string depending on how it's stored
-            if isinstance(setting, dict):
-                return setting.get("path") or "/"
-            return str(setting)
-        return "/"
+        try:
+            setting = await get_setting("admin_workspace_path")
+            if setting:
+                if isinstance(setting, dict) and setting.get("path"):
+                    return str(setting["path"])
+                if isinstance(setting, str):
+                    return setting
+            return get_admin_workspace()
+        except PermissionError as exc:
+            raise HTTPException(403, str(exc)) from exc
     return None
 
 
@@ -86,15 +105,44 @@ async def download_file(path: str, user: dict = Depends(get_current_user)):
 
 
 @router.get("/files/read")
-async def read_file(path: str, user: dict = Depends(get_current_user)):
+async def read_file(
+    path: str,
+    download: bool = False,
+    base64_encode: bool = Query(False, alias="base64"),
+    user: dict = Depends(get_current_user),
+):
     """Read file content for preview."""
     workspace = await get_effective_workspace(user)
     safe_path = _resolve_or_403(user["id"], path, workspace)
     if not os.path.isfile(safe_path):
         raise HTTPException(404, "File not found")
-    
-    # Return as plain text for the preview modal
-    return FileResponse(safe_path, media_type="text/plain")
+
+    if download:
+        guessed_type = mimetypes.guess_type(safe_path)[0] or "application/octet-stream"
+        return FileResponse(safe_path, filename=os.path.basename(safe_path), media_type=guessed_type)
+
+    if base64_encode:
+        with open(safe_path, "rb") as handle:
+            encoded = base64.b64encode(handle.read()).decode("ascii")
+        return {"content": encoded}
+
+    try:
+        with open(safe_path, "r", encoding="utf-8", errors="ignore") as handle:
+            return {"content": handle.read()}
+    except Exception as exc:
+        raise HTTPException(500, f"Error reading file: {exc}") from exc
+
+
+@router.post("/files/save")
+async def save_text_file(payload: SaveTextFilePayload, user: dict = Depends(get_current_user)):
+    workspace = await get_effective_workspace(user)
+    safe_path = _resolve_or_403(user["id"], payload.path, workspace)
+    try:
+        enforce_file_size_limit(len(payload.content.encode("utf-8")), settings.max_editor_bytes, "File exceeds editor size limit")
+    except ValueError as exc:
+        raise HTTPException(413, str(exc)) from exc
+    await atomic_write_bytes(user["id"], safe_path, payload.content.encode("utf-8"))
+    return {"message": "Saved successfully"}
 
 
 @router.post("/files/upload")
@@ -106,6 +154,10 @@ async def upload_file(
     """Upload a file to user's workspace (quota enforced)."""
     content = await file.read()
     workspace = await get_effective_workspace(user)
+    try:
+        enforce_file_size_limit(len(content), settings.max_upload_bytes, "Upload exceeds size limit")
+    except ValueError as exc:
+        raise HTTPException(413, str(exc)) from exc
 
     if user.get("role") != "admin" and not await check_quota(user["id"], len(content), workspace):
         raise HTTPException(413, "Storage quota exceeded.")
@@ -115,8 +167,7 @@ async def upload_file(
     safe_name = _safe_upload_filename(file.filename)
     dest = _resolve_or_403(user["id"], os.path.join(path, safe_name), workspace)
 
-    with open(dest, "wb") as f:
-        f.write(content)
+    await atomic_write_bytes(user["id"], dest, content)
 
     return {"message": "Uploaded", "path": os.path.join(path, safe_name)}
 
@@ -127,7 +178,10 @@ async def delete_file(path: str, user: dict = Depends(get_current_user)):
     workspace = await get_effective_workspace(user)
     effective_workspace = workspace or get_user_workspace(user["id"])
     safe_path = _resolve_or_403(user["id"], path, workspace)
-    _ensure_not_workspace_root(safe_path, effective_workspace, "delete")
+    try:
+        ensure_not_workspace_root(safe_path, effective_workspace, "delete")
+    except PermissionError as exc:
+        raise HTTPException(400, str(exc)) from exc
     if not os.path.exists(safe_path):
         raise HTTPException(404, "File not found")
 
@@ -171,6 +225,7 @@ async def save_docx(
     
     try:
         html_content = payload.get("content", "")
+        enforce_file_size_limit(len(html_content.encode("utf-8")), settings.max_editor_bytes, "Document exceeds editor size limit")
         # Basic rebuild from HTML-like string to docx
         from docx import Document
         import re
@@ -184,7 +239,12 @@ async def save_docx(
             if line:
                 doc.add_paragraph(line)
                 
-        doc.save(safe_path)
+        temp_bytes_path = f"{safe_path}.generated"
+        doc.save(temp_bytes_path)
+        with open(temp_bytes_path, "rb") as handle:
+            payload = handle.read()
+        os.remove(temp_bytes_path)
+        await atomic_write_bytes(user["id"], safe_path, payload)
         return {"message": "Saved successfully"}
     except Exception as e:
         raise HTTPException(500, f"Error saving docx: {str(e)}")
@@ -219,11 +279,17 @@ async def save_xlsx(
     try:
         import pandas as pd
         data = payload.get("content", [])
+        enforce_file_size_limit(len(str(data).encode("utf-8")), settings.max_editor_bytes, "Spreadsheet exceeds editor size limit")
         if not data:
             df = pd.DataFrame()
         else:
             df = pd.DataFrame(data)
-        df.to_excel(safe_path, index=False)
+        temp_bytes_path = f"{safe_path}.generated"
+        df.to_excel(temp_bytes_path, index=False)
+        with open(temp_bytes_path, "rb") as handle:
+            payload = handle.read()
+        os.remove(temp_bytes_path)
+        await atomic_write_bytes(user["id"], safe_path, payload)
         return {"message": "Saved successfully"}
     except Exception as e:
         raise HTTPException(500, f"Error saving xlsx: {str(e)}")

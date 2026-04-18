@@ -1,18 +1,36 @@
-import random
-import string
-import shutil
 from pathlib import Path
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request
+from fastapi.responses import FileResponse
+from pymongo.errors import DuplicateKeyError
 
 from xoai.auth.dependencies import require_admin, get_current_user
+from xoai.auth.service import (
+    AuthError,
+    create_password_reset_token,
+    generate_numeric_code,
+    hash_password,
+    revoke_all_refresh_sessions,
+    store_verification_code,
+    consume_verification_code,
+)
+from xoai.config import settings
+from xoai.jobs import job_manager
+from xoai.utils.rate_limit import build_client_key, rate_limiter
 from xoai.users import service
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
+from typing import Annotated
 
 router = APIRouter()
+
+SafeName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120, pattern=r"^[^$<>]{1,120}$")]
+SafeBio = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500, pattern=r"^[^$<>]{0,500}$")]
+SafeToken = Annotated[str, StringConstraints(strip_whitespace=True, max_length=4096, pattern=r"^[^\x00]{1,4096}$")]
+SafeProvider = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=32, pattern=r"^[a-zA-Z0-9._-]+$")]
+SafeModel = Annotated[str, StringConstraints(strip_whitespace=True, max_length=128, pattern=r"^[a-zA-Z0-9._:/-]*$")]
+SafeWorkChatId = Annotated[str, StringConstraints(strip_whitespace=True, max_length=128, pattern=r"^[a-zA-Z0-9._:-]*$")]
 
 
 def _user_object_id(user: dict) -> ObjectId:
@@ -23,28 +41,39 @@ def _object_id(value: str) -> ObjectId:
     return ObjectId(value)
 
 class EmailCodeReq(BaseModel):
-    email: str
+    model_config = ConfigDict(extra="forbid")
+    email: EmailStr
 
 class EmailUpdateReq(BaseModel):
-    email: str
-    code: str
+    model_config = ConfigDict(extra="forbid")
+    email: EmailStr
+    code: Annotated[str, StringConstraints(strip_whitespace=True, min_length=4, max_length=12, pattern=r"^[0-9A-Za-z_-]+$")]
 
 class PasswordResetReq(BaseModel):
-    password: str
+    model_config = ConfigDict(extra="forbid")
+    password: str = Field(min_length=8)
 
 class IntegrationsReq(BaseModel):
-    discord: Optional[str] = ""
-    telegram: Optional[str] = ""
-    zalo: Optional[str] = ""
+    model_config = ConfigDict(extra="forbid")
+    discord: Optional[SafeToken] = ""
+    telegram: Optional[SafeToken] = ""
+    zalo: Optional[SafeToken] = ""
 
 class ProfileUpdateReq(BaseModel):
-    name: Optional[str] = None
-    bio: Optional[str] = None
-    email: Optional[str] = None
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[SafeName] = None
+    bio: Optional[SafeBio] = None
+    email: Optional[EmailStr] = None
 
 class PasswordChangeReq(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     old_password: str
-    new_password: str
+    new_password: str = Field(min_length=8)
+
+
+class WorkChatUpdateReq(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    work_chat_id: SafeWorkChatId | None = None
 
 @router.put("/profile")
 async def update_profile(req: ProfileUpdateReq, user=Depends(get_current_user)):
@@ -58,12 +87,15 @@ async def update_profile(req: ProfileUpdateReq, user=Depends(get_current_user)):
     if not update_data:
         return {"status": "no-op"}
 
-    await db.users.update_one({"_id": _user_object_id(user)}, {"$set": update_data})
+    try:
+        await db.users.update_one({"_id": _user_object_id(user)}, {"$set": update_data})
+    except DuplicateKeyError as exc:
+        raise HTTPException(status_code=409, detail="Email already in use") from exc
     return {"status": "ok"}
 
 @router.post("/change-password")
 async def change_password(req: PasswordChangeReq, user=Depends(get_current_user)):
-    from xoai.auth.service import verify_password, hash_password
+    from xoai.auth.service import verify_password
     from xoai.db.mongo import db
     
     # Get the user with password_hash
@@ -75,6 +107,7 @@ async def change_password(req: PasswordChangeReq, user=Depends(get_current_user)
         {"_id": _user_object_id(user)},
         {"$set": {"password_hash": hash_password(req.new_password)}}
     )
+    await revoke_all_refresh_sessions(user["id"])
     return {"status": "ok"}
 
 @router.put("/integrations")
@@ -99,14 +132,16 @@ async def update_integrations(req: IntegrationsReq, user=Depends(get_current_use
     return {"status": "ok"}
 
 class IntelligenceReq(BaseModel):
-    provider: str
-    key: str
-    model: Optional[str] = None
+    model_config = ConfigDict(extra="forbid")
+    provider: SafeProvider
+    key: SafeToken
+    model: Optional[SafeModel] = None
 
 class FetchModelsReq(BaseModel):
-    provider: str
-    key: str
-    base_url: Optional[str] = None
+    model_config = ConfigDict(extra="forbid")
+    provider: SafeProvider
+    key: SafeToken
+    base_url: Optional[Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)]] = None
 
 @router.put("/intelligence")
 async def update_intelligence(req: IntelligenceReq, user=Depends(get_current_user)):
@@ -150,12 +185,11 @@ async def fetch_agent_models(req: FetchModelsReq, _: Any = Depends(get_current_u
         raise HTTPException(400, f"Failed to fetch models: {str(e)}")
 
 @router.put("/work_chat")
-async def update_work_chat(data: dict, user=Depends(get_current_user)):
-    work_chat_id = data.get("work_chat_id")
+async def update_work_chat(data: WorkChatUpdateReq, user=Depends(get_current_user)):
     from xoai.db.mongo import db
     await db.users.update_one(
         {"_id": _user_object_id(user)},
-        {"$set": {"active_work_chat_id": work_chat_id}}
+        {"$set": {"active_work_chat_id": data.work_chat_id}}
     )
     return {"status": "ok"}
 
@@ -184,71 +218,99 @@ async def disable_user(user_id: str, current_user=Depends(require_admin)):
     return {"message": f"User {user_id} disabled"}
 
 @router.post("/email-verification-code")
-async def send_email_code(req: EmailCodeReq, user=Depends(get_current_user)):
-    from xoai.auth.service import send_verification_email
+async def send_email_code(req: EmailCodeReq, request: Request, user=Depends(get_current_user)):
     from xoai.db.mongo import db
-    
-    code = ''.join(random.choices(string.digits, k=6))
 
-    await db.verification_codes.update_one(
-        {"user_id": user["id"], "type": "email_change"},
-        {"$set": {"code": code, "target_email": req.email, "created_at": datetime.now(timezone.utc)}},
-        upsert=True
+    rate_limiter.enforce(build_client_key(request, "users.email_change", user["id"]), 10, 60, "Too many email verification attempts")
+    existing = await db.users.find_one({"email": req.email, "_id": {"$ne": _user_object_id(user)}})
+    if existing:
+        raise HTTPException(status_code=409, detail="Email already in use")
+
+    code = generate_numeric_code()
+    await store_verification_code(user_id=user["id"], code_type="email_change", target=req.email, code=code)
+    await job_manager.enqueue(
+        "verification_email",
+        {
+            "email": req.email,
+            "subject": "XOAI Confirm Email Change",
+            "code_or_link": code,
+        },
     )
-
-    success = await send_verification_email(req.email, code)
-    if not success:
-        raise HTTPException(500, "Failed to send email. Ensure Admin has configured SMTP From address.")
-    
     return {"status": "ok"}
 
 @router.put("/update-email")
 async def update_email(req: EmailUpdateReq, user=Depends(get_current_user)):
     from xoai.db.mongo import db
-    
-    verify_doc = await db.verification_codes.find_one({
-        "user_id": user["id"],
-        "type": "email_change",
-        "code": req.code,
-        "target_email": req.email
-    })
-    
-    if not verify_doc:
-        raise HTTPException(400, "Invalid or expired verification code")
-    
-    # Update user email
-    await db.users.update_one({"_id": _user_object_id(user)}, {"$set": {"email": req.email}})
-    # Clean up code
-    await db.verification_codes.delete_one({"_id": verify_doc["_id"]})
-    
+
+    try:
+        await consume_verification_code(user_id=user["id"], code_type="email_change", target=req.email, code=req.code)
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+    try:
+        await db.users.update_one({"_id": _user_object_id(user)}, {"$set": {"email": req.email}})
+    except DuplicateKeyError as exc:
+        raise HTTPException(status_code=409, detail="Email already in use") from exc
     return {"status": "ok"}
 
 @router.post("/avatar")
 async def upload_avatar(file: UploadFile = File(...), user=Depends(get_current_user)):
-    # Simple local storage for demo
-    # In production use S3 or similar
-    upload_dir = Path("./static/avatars")
+    allowed_types = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Unsupported avatar type")
+
+    data = await file.read()
+    if len(data) > settings.max_avatar_bytes:
+        raise HTTPException(status_code=413, detail="Avatar exceeds size limit")
+
+    upload_dir = Path(settings.xoai_storage) / "avatars"
     upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    file_ext = Path(file.filename).suffix
+
+    file_ext = allowed_types[file.content_type]
     file_path = upload_dir / f"{user['id']}{file_ext}"
-    
+
     with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    url = f"/api/static/avatars/{user['id']}{file_ext}"
+        buffer.write(data)
+
+    url = f"/api/users/avatar/{user['id']}{file_ext}"
     from xoai.db.mongo import db
     await db.users.update_one({"_id": _user_object_id(user)}, {"$set": {"avatar": url}})
-    
+
     return {"url": url}
+
+
+@router.get("/avatar/{filename}")
+async def get_avatar(filename: str):
+    avatar_path = Path(settings.xoai_storage) / "avatars" / Path(filename).name
+    if not avatar_path.is_file():
+        raise HTTPException(status_code=404, detail="Avatar not found")
+    return FileResponse(avatar_path)
 
 @router.post("/{user_id}/reset-password")
 async def reset_password(user_id: str, req: PasswordResetReq, _=Depends(require_admin)):
-    from xoai.auth.service import hash_password
     from xoai.db.mongo import db
-    
+
     await db.users.update_one(
         {"_id": _object_id(user_id)},
         {"$set": {"password_hash": hash_password(req.password)}}
+    )
+    return {"status": "ok"}
+
+
+@router.post("/{user_id}/issue-password-reset")
+async def issue_password_reset(user_id: str, _=Depends(require_admin)):
+    from xoai.db.mongo import db
+
+    user_doc = await db.users.find_one({"_id": _object_id(user_id)})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    token = await create_password_reset_token(user_id, user_doc["email"])
+    await job_manager.enqueue(
+        "verification_email",
+        {
+            "email": user_doc["email"],
+            "subject": "XOAI Password Reset",
+            "code_or_link": f"{settings.public_base_url.rstrip('/')}/api/auth/password-reset/confirm?token={token}",
+        },
     )
     return {"status": "ok"}

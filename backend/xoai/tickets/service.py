@@ -1,6 +1,5 @@
 """Ticket service — autonomous support triage."""
 import logging
-import asyncio
 import uuid
 from datetime import datetime, timezone
 from bson import ObjectId
@@ -8,6 +7,8 @@ from bson import ObjectId
 from xoai.db.mongo import get_db
 from xoai.agents.llm_pool import get_agent_config, llm_pool
 from xoai.channels.notifier import notify_admin
+from xoai.agents.memory import save_message
+from xoai.jobs import job_manager
 from xoai.prompts.manager import get_prompt
 
 logger = logging.getLogger("xoai.tickets.service")
@@ -26,10 +27,7 @@ async def create_ticket(user_id: str, subject: str, message: str) -> str:
     }
     result = await db.tickets.insert_one(doc)
     ticket_id = str(result.inserted_id)
-    
-    # Trigger autonomous triage
-    asyncio.create_task(agent_0_triage(ticket_id))
-    
+    await job_manager.enqueue("ticket_triage", {"ticket_id": ticket_id})
     return ticket_id
 
 
@@ -103,26 +101,18 @@ async def _post_to_work_chat(user_id: str, chat_id: str | None, content: str, me
             "chat_id": chat_id,
             "user_id": user_id,
             "title": "Admin Work Chat",
-            "messages": [],
+            "summary_compressed": None,
+            "message_count": 0,
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
         })
         await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"active_work_chat_id": chat_id}})
-
-    message = {
-        "role": "assistant",
-        "name": "Agent 0",
-        "content": content,
-        "metadata": metadata or {},
-        "created_at": datetime.now(timezone.utc)
-    }
-    
-    await db.conversations.update_one(
-        {"chat_id": chat_id},
-        {
-            "$push": {"messages": message},
-            "$set": {"updated_at": datetime.now(timezone.utc)}
-        }
+    await save_message(
+        chat_id,
+        "assistant",
+        content,
+        user_id=user_id,
+        channel_metadata=metadata or {},
     )
     logger.info(f"Routed ticket to Work Chat {chat_id}")
 

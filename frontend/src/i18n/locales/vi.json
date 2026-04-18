@@ -528,7 +528,24 @@
     "hide_chat": "Ẩn chat",
     "show_chat": "Hiện chat",
     "personal_assistant": "Trợ lý cá nhân",
-    "type_to_chat": "Nhập để trò chuyện..."
+    "type_to_chat": "Nhập để trò chuyện...",
+    "root": "Gốc",
+    "actions": {
+      "open": "Mở",
+      "open_new_tab": "Mở trong tab mới",
+      "download": "Tải xuống"
+    },
+    "states": {
+      "scanning": "Đang quét thư mục...",
+      "empty": "Thư mục này đang trống",
+      "drop_here": "Thả tệp vào đây để tải lên",
+      "drop_to_upload": "Thả tệp để tải lên {path}"
+    },
+    "notifications": {
+      "load_failed": "Không thể tải không gian làm việc: {error}",
+      "upload_failed": "Tải tệp thất bại: {error}",
+      "upload_complete": "Đã tải lên {count} tệp"
+    }
   },
   "userSettings": {
     "back_to_workspace": "Quay lại Không gian làm việc",

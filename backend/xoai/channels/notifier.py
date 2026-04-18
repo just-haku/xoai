@@ -24,11 +24,11 @@ async def notify_admin(user_id: str, message: str):
     if "telegram" in mappings:
         try:
             from telegram import Bot
-            from xoai.auth.service import decrypt_key
+            from xoai.auth.service import decrypt_value
             
             instance = await db.bot_instances.find_one({"user_id": str(user_id), "platform": "telegram"})
             if instance:
-                token = decrypt_key(instance["token_encrypted"])
+                token = decrypt_value(instance["token_encrypted"])
                 bot = Bot(token=token)
                 await bot.initialize()
                 await bot.send_message(chat_id=mappings["telegram"], text=message)

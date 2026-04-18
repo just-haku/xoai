@@ -6,12 +6,12 @@ No tool access — pure routing intelligence.
 """
 
 import logging
-import asyncio
 from datetime import datetime, timezone
 
 from xoai.agents.llm_pool import llm_pool
 from xoai.agents.runtime import run_query
 from xoai.db.mongo import db
+from xoai.jobs import job_manager
 from xoai.prompts.manager import get_prompt
 
 logger = logging.getLogger("xoai.agents.supervisor")
@@ -20,12 +20,12 @@ async def process_message(user: dict, message: str, conversation_id: str, channe
     # Check if first message to trigger auto-titling
     chat = await db.conversations.find_one({"chat_id": conversation_id})
     if chat and not chat.get("title"):
-        asyncio.create_task(_handle_new_conversation(conversation_id, message))
+        await job_manager.enqueue("auto_title", {"chat_id": conversation_id, "first_msg": message})
 
     return run_query(user, message, conversation_id, channel)
 
 
-async def _handle_new_conversation(chat_id: str, first_msg: str):
+async def generate_auto_title(chat_id: str, first_msg: str):
     """Generates a title for new conversations using Agent 0's intent model."""
     prompt = get_prompt("auto_title", first_msg=first_msg)
     try:

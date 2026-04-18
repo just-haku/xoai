@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+from xoai.auth.service import decrypt_value
+
 logger = logging.getLogger("xoai.channels.manager")
 
 # Dictionary to track running bot tasks for each user/platform
@@ -39,12 +41,11 @@ async def stop_bot_instance(user_id: str, platform: str):
 async def load_all_tenant_bots():
     """Called on startup to resume all user bots from DB."""
     from xoai.db.mongo import db
-    from xoai.auth.service import decrypt_key
     
     cursor = db.bot_instances.find({"status": "active"})
     async for instance in cursor:
         try:
-            token = decrypt_key(instance["token_encrypted"])
+            token = decrypt_value(instance["token_encrypted"])
             await restart_bot_instance(instance["user_id"], instance["platform"], token)
         except Exception as e:
             logger.error(f"Failed to load bot {instance['_id']}: {e}")

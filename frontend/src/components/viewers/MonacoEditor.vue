@@ -13,16 +13,6 @@ const emit = defineEmits(['update:modelValue', 'save'])
 const container = ref(null)
 let editor = null
 
-const getLanguage = (ext) => {
-  const map = {
-    js: 'javascript', ts: 'typescript', py: 'python', 
-    html: 'html', css: 'css', json: 'json',
-    md: 'markdown', sh: 'shell', sql: 'sql',
-    vue: 'html', c: 'c', cpp: 'cpp'
-  }
-  return map[ext] || 'text'
-}
-
 onMounted(() => {
   if (container.value) {
     editor = monaco.editor.create(container.value, {

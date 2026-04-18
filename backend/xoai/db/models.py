@@ -48,6 +48,7 @@ class ConversationDoc(BaseModel):
     channel: str = "web"  # web | zalo | telegram | discord
     title: str = "New Chat"
     summary_compressed: Optional[str] = None
+    message_count: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -76,3 +77,26 @@ class McpServerDoc(BaseModel):
     user_id: Optional[str] = None  # None = global
     tools_cache: list = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RefreshSessionDoc(BaseModel):
+    session_id: str
+    user_id: str
+    expires_at: datetime
+    revoked_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_used_at: datetime = Field(default_factory=datetime.utcnow)
+    user_agent: Optional[str] = None
+    ip: Optional[str] = None
+
+
+class BackgroundJobDoc(BaseModel):
+    type: str
+    status: str = "queued"
+    attempts: int = 0
+    max_attempts: int = 3
+    payload: dict = Field(default_factory=dict)
+    last_error: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    run_after: datetime = Field(default_factory=datetime.utcnow)

@@ -1,3 +1,5 @@
+import pytest
+
 from xoai.agents.runtime import _parse_verifier_result, _select_batch, _should_run_retry
 from xoai.agents.topology import ExecutionNode, VerifierResult, build_execution_plan
 
@@ -116,3 +118,13 @@ def test_parse_verifier_result_requires_strict_json_contract():
     invalid = _parse_verifier_result("The implementation has a regression and should retry.", None)
     assert invalid.is_valid is False
     assert invalid.reason_code == "invalid_verifier_output"
+
+
+def test_verifier_result_rejects_extra_fields():
+    with pytest.raises(Exception):
+        VerifierResult(
+            is_valid=True,
+            reason_code="valid",
+            feedback="ok",
+            extra_field="not-allowed",
+        )

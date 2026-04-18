@@ -3,6 +3,7 @@ import { ref, watch, onMounted } from 'vue'
 import { api } from '../services/api'
 import { useUIStore } from '../stores/ui'
 import ContextMenu from './ContextMenu.vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
   currentPath: {
@@ -13,11 +14,13 @@ const props = defineProps({
 
 const emit = defineEmits(['open'])
 const uiStore = useUIStore()
+const { t } = useI18n()
 
 const files = ref([])
 const loading = ref(false)
 const menu = ref(null)
 const selectedFile = ref(null)
+const isDragActive = ref(false)
 
 const fetchFiles = async () => {
   loading.value = true
@@ -29,7 +32,7 @@ const fetchFiles = async () => {
       path: props.currentPath ? (props.currentPath + '/' + f.name) : f.name
     }))
   } catch (err) {
-    console.error('Failed to fetch files:', err)
+    uiStore.notify(t('workspace.notifications.load_failed', { error: err.message }), 'danger')
   } finally {
     loading.value = false
   }
@@ -53,9 +56,9 @@ const handleFileDblClick = (file) => {
 
 const handleContextMenu = (e, file) => {
   const items = [
-    { label: 'Open', icon: '👁️', action: () => handleFileClick(file) },
-    { label: 'Open in new tab', icon: '🔗', action: () => openInNewTab(file) },
-    { label: 'Download', icon: '⬇️', action: () => downloadFile(file) }
+    { label: t('workspace.actions.open'), icon: '👁️', action: () => handleFileClick(file) },
+    { label: t('workspace.actions.open_new_tab'), icon: '🔗', action: () => openInNewTab(file) },
+    { label: t('workspace.actions.download'), icon: '⬇️', action: () => downloadFile(file) }
   ]
   menu.value.open(e, items)
 }
@@ -72,6 +75,7 @@ const downloadFile = (file) => {
 }
 
 const handleDrop = async (e) => {
+  isDragActive.value = false
   const droppedFiles = e.dataTransfer.files
   if (droppedFiles.length === 0) return
   
@@ -79,10 +83,20 @@ const handleDrop = async (e) => {
     try {
       await api.workspace.uploadFile(file, props.currentPath)
     } catch (err) {
-      uiStore.notify('Upload failed: ' + err.message, 'danger')
+      uiStore.notify(t('workspace.notifications.upload_failed', { error: err.message }), 'danger')
     }
   }
+  uiStore.notify(t('workspace.notifications.upload_complete', { count: droppedFiles.length }), 'success')
   fetchFiles()
+}
+
+const handleDragEnter = () => {
+  isDragActive.value = true
+}
+
+const handleDragLeave = (e) => {
+  if (e.currentTarget.contains(e.relatedTarget)) return
+  isDragActive.value = false
 }
 
 const goBack = () => {
@@ -97,7 +111,7 @@ onMounted(fetchFiles)
 </script>
 
 <template>
-  <div class="workspace-content" @dragover.prevent @drop.prevent="handleDrop">
+  <div class="workspace-content" @dragover.prevent @dragenter.prevent="handleDragEnter" @dragleave.prevent="handleDragLeave" @drop.prevent="handleDrop">
     <div class="ws-header-title">
       <button 
         v-if="currentPath" 
@@ -107,18 +121,18 @@ onMounted(fetchFiles)
       >
         <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg>
       </button>
-      <span class="path-label">{{ currentPath || 'Root' }}</span>
+      <span class="path-label">{{ currentPath || t('workspace.root') }}</span>
     </div>
 
     <div class="grid-container">
       <div v-if="loading" class="center-state">
-        Scanning Directory...
+        {{ t('workspace.states.scanning') }}
       </div>
       <div v-else-if="files.length === 0" class="center-state">
         <div class="drop-hint">
           <svg viewBox="0 0 24 24"><path d="M14,13V17H10V13H7L12,8L17,13H14M19.35,10.03C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.03C2.34,8.36 0,10.9 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.03Z"/></svg>
-          <p>This folder is empty</p>
-          <span>Drop files here to upload</span>
+          <p>{{ t('workspace.states.empty') }}</p>
+          <span>{{ t('workspace.states.drop_here') }}</span>
         </div>
       </div>
       <div v-else class="file-grid">
@@ -141,10 +155,10 @@ onMounted(fetchFiles)
     </div>
 
     <!-- Persistent Drop Zone Hint -->
-    <div class="drop-zone-overlay">
+    <div class="drop-zone-overlay" :class="{ active: isDragActive }">
        <div class="overlay-inner">
          <svg viewBox="0 0 24 24"><path d="M14,13V17H10V13H7L12,8L17,13H14M19.35,10.03C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.03C2.34,8.36 0,10.9 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.03Z"/></svg>
-         <span>Drop files to upload to <b>{{ currentPath || 'Root' }}</b></span>
+         <span>{{ t('workspace.states.drop_to_upload', { path: currentPath || t('workspace.root') }) }}</span>
        </div>
     </div>
     <ContextMenu ref="menu" />
@@ -282,6 +296,7 @@ onMounted(fetchFiles)
   justify-content: center;
   pointer-events: none;
 }
+.drop-zone-overlay.active { display: flex; }
 
 .overlay-inner {
   padding: 40px;

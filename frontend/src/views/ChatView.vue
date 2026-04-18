@@ -112,7 +112,7 @@ const startDrag = (id, event) => {
 
   document.body.classList.add('dragging')
 
-  const move = (e) => {
+    const move = (e) => {
     const desktopArea = document.querySelector('.chat-main')
     const rect = desktopArea.getBoundingClientRect()
     
@@ -120,9 +120,9 @@ const startDrag = (id, event) => {
     let newY = e.clientY - startY
 
     newX = Math.max(0, Math.min(newX, rect.width - win.w))
-    newY = Math.max(0, Math.min(newY, rect.height - win.h)) 
-    
-    uiStore.updateWindow(id, { x: newX, y: newY })
+    newY = Math.max(0, Math.min(newY, rect.height - win.h))
+
+    uiStore.updateWindow(id, uiStore.clampWindowToViewport({ ...win, x: newX, y: newY }))
     
     if (e.clientY < 60) {
       document.body.classList.add('dock-target')
@@ -142,19 +142,19 @@ const startDrag = (id, event) => {
       if (e.clientX < splitPoint - 100) {
         // Snap to LEFT
         uiStore.setLayout('split')
-        uiStore.updateWindow(id, { floating: false, order: 1 })
-        uiStore.updateWindow(id === 'chat' ? 'workspace' : 'chat', { order: 2 })
+        uiStore.snapWindow(id, 'left')
+        uiStore.snapWindow(id === 'chat' ? 'workspace' : 'chat', 'right')
         restore(id === 'chat' ? 'workspace' : 'chat')
       } else if (e.clientX > splitPoint + 100) {
         // Snap to RIGHT
         uiStore.setLayout('split')
-        uiStore.updateWindow(id, { floating: false, order: 2 })
-        uiStore.updateWindow(id === 'chat' ? 'workspace' : 'chat', { order: 1 })
+        uiStore.snapWindow(id, 'right')
+        uiStore.snapWindow(id === 'chat' ? 'workspace' : 'chat', 'left')
         restore(id === 'chat' ? 'workspace' : 'chat')
       } else {
         // Snap to FULL (Center)
         uiStore.setLayout('chat-only')
-        uiStore.updateWindow(id, { floating: false })
+        uiStore.snapWindow(id, 'full')
         minimize(id === 'chat' ? 'workspace' : 'chat')
       }
     }
@@ -173,10 +173,11 @@ const startResize = (id, event) => {
   const startY = event.clientY
 
   const move = (e) => {
-    uiStore.updateWindow(id, { 
+    uiStore.updateWindow(id, uiStore.clampWindowToViewport({
+      ...win,
       w: Math.max(300, startW + (e.clientX - startX)),
       h: Math.max(200, startH + (e.clientY - startY))
-    })
+    }))
   }
 
   const up = () => {

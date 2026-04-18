@@ -1,7 +1,14 @@
 """Filesystem tools — read, write, list with path jail + quota."""
 
 import os
-from xoai.workspace.service import resolve_safe_path, check_quota
+
+from xoai.config import settings
+from xoai.workspace.service import (
+    atomic_write_text,
+    check_quota,
+    enforce_file_size_limit,
+    resolve_safe_path,
+)
 
 
 async def list_files(user_id: str, path: str = "") -> str:
@@ -22,10 +29,14 @@ async def read_file(user_id: str, path: str) -> str:
 
 
 async def write_file(user_id: str, path: str, content: str) -> str:
-    if not await check_quota(user_id, len(content.encode())):
+    encoded = content.encode()
+    try:
+        enforce_file_size_limit(len(encoded), settings.max_editor_bytes, "Error: file exceeds editor size limit.")
+    except ValueError as exc:
+        return str(exc)
+    if not await check_quota(user_id, len(encoded)):
         return "Error: storage quota exceeded."
     safe = resolve_safe_path(user_id, path)
     os.makedirs(os.path.dirname(safe), exist_ok=True)
-    with open(safe, "w", encoding="utf-8") as f:
-        f.write(content)
+    await atomic_write_text(user_id, safe, content)
     return "OK"

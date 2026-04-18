@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 from datetime import datetime, timezone
 from typing import Any
 
@@ -57,16 +59,19 @@ async def fetch_available_benchmark_models(role: str | None = None, max_models: 
         if not config.get("key"):
             continue
         try:
-            provider = await get_provider(config)
-            candidates.extend(await provider.list_models())
+            candidates.extend(await _fetch_google_models_rest(config["key"]))
         except Exception as exc:
-            logger.warning("Gemini model discovery failed for %s: %s", config_key, exc)
+            logger.warning("Gemini model discovery failed for %s via REST: %s", config_key, exc)
+            try:
+                provider = await get_provider(config)
+                candidates.extend(await provider.list_models())
+            except Exception as provider_exc:
+                logger.warning("Gemini model discovery fallback failed for %s: %s", config_key, provider_exc)
 
     try:
         fallback_config = await get_fallback_key("gemini")
         if fallback_config and fallback_config.get("key"):
-            provider = await get_provider(fallback_config)
-            candidates.extend(await provider.list_models())
+            candidates.extend(await _fetch_google_models_rest(fallback_config["key"]))
     except Exception as exc:
         logger.warning("Gemini fallback model discovery failed: %s", exc)
 
@@ -74,6 +79,24 @@ async def fetch_available_benchmark_models(role: str | None = None, max_models: 
     if not discovered:
         discovered = DEFAULT_GEMINI_BENCHMARK_MODELS
     return discovered[:max_models]
+
+
+async def _fetch_google_models_rest(api_key: str) -> list[str]:
+    query = urlencode({"key": api_key})
+    request = Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models?{query}",
+        headers={"Accept": "application/json"},
+    )
+    with urlopen(request, timeout=10) as response:
+        payload = response.read().decode("utf-8")
+    import json
+
+    data = json.loads(payload)
+    models = []
+    for model in data.get("models", []):
+        if "generateContent" in model.get("supportedGenerationMethods", []):
+            models.append(model.get("name", ""))
+    return _dedupe_models(models)
 
 
 def _model_utility_adjustment(model: str) -> float:

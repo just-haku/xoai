@@ -124,7 +124,7 @@ def build_execution_plan(user: dict, message: str, channel: str = "web") -> Exec
                     depends_on=["executor"],
                     branch_type="verifier",
                     verifier_for="executor",
-                    metadata={"phase": "verify"},
+                    metadata={"phase": "verify", "output_schema": "VerifierResult"},
                 ),
                 ExecutionNode(
                     id="executor_retry",
