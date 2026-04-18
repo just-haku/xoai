@@ -22,6 +22,7 @@ const loading = ref(false)
 const menu = ref(null)
 const selectedFile = ref(null)
 const isDragActive = ref(false)
+const uploadProgress = ref(null)
 
 const fetchFiles = async () => {
   loading.value = true
@@ -89,11 +90,18 @@ const handleDrop = async (e) => {
   
   for (let file of droppedFiles) {
     try {
-      await api.workspace.uploadFile(file, props.currentPath)
+      await api.workspace.uploadFile(file, props.currentPath, ({ uploadedBytes, totalBytes }) => {
+        uploadProgress.value = {
+          name: file.name,
+          uploadedBytes,
+          totalBytes,
+        }
+      })
     } catch (err) {
       uiStore.notify(t('workspace.notifications.upload_failed', { error: err.message }), 'danger')
     }
   }
+  uploadProgress.value = null
   uiStore.notify(t('workspace.notifications.upload_complete', { count: droppedFiles.length }), 'success')
   fetchFiles()
 }
@@ -168,6 +176,10 @@ onMounted(fetchFiles)
          <svg viewBox="0 0 24 24"><path d="M14,13V17H10V13H7L12,8L17,13H14M19.35,10.03C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.03C2.34,8.36 0,10.9 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.03Z"/></svg>
          <span>{{ t('workspace.states.drop_to_upload', { path: currentPath || t('workspace.root') }) }}</span>
        </div>
+    </div>
+    <div v-if="uploadProgress" class="upload-progress">
+      <strong>{{ uploadProgress.name }}</strong>
+      <span>{{ Math.round((uploadProgress.uploadedBytes / Math.max(uploadProgress.totalBytes, 1)) * 100) }}%</span>
     </div>
     <ContextMenu ref="menu" />
   </div>
@@ -317,4 +329,18 @@ onMounted(fetchFiles)
   color: var(--mango-primary);
 }
 .overlay-inner svg { width: 64px; fill: currentColor; }
+
+.upload-progress {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
 </style>

@@ -5,6 +5,7 @@ import json
 import logging
 from typing import AsyncIterator
 
+from xoai.agents.policy import HIGH_RISK_CLASSES, QueryBudget, enforce_high_risk_consensus
 from xoai.agents.llm_pool import get_provider
 from xoai.agents.tool_registry import ToolRegistry
 from xoai.agents.memory import save_message
@@ -50,12 +51,13 @@ class BaseAgent:
 
         # Tool definitions
         tool_defs = self.tools.get_definitions() if self.tools else []
+        budget = QueryBudget()
         
         # For simplicity in Phase 3, we'll do the orchestration loop here
         # Note: Streaming with tool calls is complex; we'll handle tool calls non-streaming
         # and text streaming separately.
 
-        for step in range(10):  # Max 10 tool steps to prevent infinite loops
+        for step in range(budget.max_steps):
             try:
                 # 1. Get completion
                 res = await self.provider.chat(
@@ -82,6 +84,7 @@ class BaseAgent:
                     
                     # Check for HITL
                     tool_meta = self.tools.metadata.get(name, {})
+                    failure_key = f"{name}:{json.dumps(args, sort_keys=True, default=str)}"
                     if tool_meta.get("requires_approval"):
                         yield {
                             "type": "input_required", 
@@ -101,8 +104,41 @@ class BaseAgent:
                             yield {"type": "tool_start", "tool": name, "args": args}
                             result = await self.tools.call(name, args, context={"user_id": user_id, "conversation_id": conversation_id})
                     else:
+                        if tool_meta.get("risk_class") in HIGH_RISK_CLASSES:
+                            consensus = await enforce_high_risk_consensus(
+                                acting_agent=self.name,
+                                tool_name=name,
+                                args=args,
+                                user_id=user_id,
+                                conversation_id=conversation_id,
+                            )
+                            yield {
+                                "type": "consensus_result",
+                                "tool": name,
+                                "result": consensus.model_dump(),
+                            }
+                            if not consensus.is_valid:
+                                result = f"Execution blocked by verifier consensus: {consensus.reason_code} - {consensus.feedback}"
+                                budget.record_failure(failure_key)
+                                messages.append({
+                                    "role": "tool",
+                                    "tool_call_id": tc_id,
+                                    "name": name,
+                                    "content": str(result),
+                                })
+                                yield {"type": "tool_end", "tool": name, "result": result}
+                                if budget.repeat_failures(failure_key) >= budget.max_repeat_failures:
+                                    yield {"type": "error", "message": f"Tool circuit breaker triggered for {name}"}
+                                    return
+                                continue
                         yield {"type": "tool_start", "tool": name, "args": args}
                         result = await self.tools.call(name, args, context={"user_id": user_id, "conversation_id": conversation_id})
+
+                    if isinstance(result, str) and result.startswith("Error"):
+                        budget.record_failure(failure_key)
+                        if budget.repeat_failures(failure_key) >= budget.max_repeat_failures:
+                            yield {"type": "error", "message": f"Tool circuit breaker triggered for {name}"}
+                            return
                     
                     yield {"type": "tool_end", "tool": name, "result": result}
                     
@@ -118,6 +154,8 @@ class BaseAgent:
                 logger.error(f"Agent {self.name} error: {e}")
                 yield {"type": "error", "message": str(e)}
                 break
+        else:
+            yield {"type": "error", "message": "Query halted by tool-step budget."}
 
 
 def _normalize_tool_calls(tool_calls):

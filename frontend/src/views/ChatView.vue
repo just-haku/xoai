@@ -27,6 +27,10 @@ const messagesContainer = ref(null)
 const previewState = ref({ show: false, file: null })
 const searchQuery = ref('')
 const user = ref({ role: 'user' })
+const virtualRowHeight = 132
+const virtualOverscan = 10
+const scrollTop = ref(0)
+const viewportHeight = ref(800)
 
 const currentChatTitle = computed(() => {
   if (chatStore.activeConversationId === chatStore.omniChannelId) return t('chat.view.work_chat_title')
@@ -48,20 +52,57 @@ const fetchUserData = async () => {
   } catch (err) {}
 }
 
+let resizeObserver = null
 onMounted(() => {
   chatStore.connect('default_conversation')
   uiStore.apply()
   fetchUserData()
+
+  // Track viewport height with ResizeObserver for accurate virtual scroll
+  if (messagesContainer.value) {
+    viewportHeight.value = messagesContainer.value.clientHeight || 800
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        viewportHeight.value = entry.contentRect.height || 800
+      }
+    })
+    resizeObserver.observe(messagesContainer.value)
+  }
+})
+
+import { onBeforeUnmount } from 'vue'
+onBeforeUnmount(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 const scrollToBottom = async () => {
   await nextTick()
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    scrollTop.value = messagesContainer.value.scrollTop
   }
 }
 
 watch(() => chatStore.messages.length, scrollToBottom)
+const totalVirtualHeight = computed(() => chatStore.messages.length * virtualRowHeight)
+const visibleRange = computed(() => {
+  const vh = viewportHeight.value
+  const start = Math.max(0, Math.floor(scrollTop.value / virtualRowHeight) - virtualOverscan)
+  const count = Math.ceil(vh / virtualRowHeight) + virtualOverscan * 2
+  const end = Math.min(chatStore.messages.length, start + count)
+  return { start, end }
+})
+const visibleMessages = computed(() =>
+  chatStore.messages.slice(visibleRange.value.start, visibleRange.value.end).map((message, offset) => ({
+    message,
+    index: visibleRange.value.start + offset,
+  }))
+)
+const topSpacerHeight = computed(() => visibleRange.value.start * virtualRowHeight)
+const bottomSpacerHeight = computed(() => Math.max(0, totalVirtualHeight.value - topSpacerHeight.value - (visibleMessages.value.length * virtualRowHeight)))
 
 const sendMessage = async () => {
   if (isGodMode.value) {
@@ -79,6 +120,15 @@ const sendMessage = async () => {
 const handleEnterKey = (e) => {
   if (e.shiftKey) return
   sendMessage()
+}
+
+const handleAttachmentSelection = (event) => {
+  attachments.value = Array.from(event.target.files || [])
+}
+
+const handleMessageScroll = () => {
+  if (!messagesContainer.value) return
+  scrollTop.value = messagesContainer.value.scrollTop
 }
 
 const logout = () => {
@@ -448,7 +498,7 @@ onMounted(() => {
             </div>
           </div>
           
-          <div class="messages-container" ref="messagesContainer">
+          <div class="messages-container" ref="messagesContainer" @scroll="handleMessageScroll">
             <div v-if="chatStore.messages.length === 0" class="welcome-container">
                <h1 class="hero-text"><span class="mango-text">{{ $t('chat.welcome_title') }}</span></h1>
                <div class="suggestions-grid">
@@ -466,14 +516,18 @@ onMounted(() => {
                  </div>
                </div>
             </div>
-            <ChatMessage 
-              v-for="(msg, idx) in chatStore.messages" 
-              :key="idx" 
-              :message="msg" 
-              :index="idx" 
-              @hitl-response="chatStore.sendInputResponse"
-              @triage-action="chatStore.handleTriageAction"
-            />
+            <div v-else class="virtual-message-list" :style="{ height: `${totalVirtualHeight}px` }">
+              <div class="virtual-spacer" :style="{ height: `${topSpacerHeight}px` }"></div>
+              <ChatMessage 
+                v-for="entry in visibleMessages"
+                :key="entry.index"
+                :message="entry.message" 
+                :index="entry.index" 
+                @hitl-response="chatStore.sendInputResponse"
+                @triage-action="chatStore.handleTriageAction"
+              />
+              <div class="virtual-spacer" :style="{ height: `${bottomSpacerHeight}px` }"></div>
+            </div>
           </div>
 
           <footer class="input-area-gemini">
@@ -484,7 +538,7 @@ onMounted(() => {
                 <button class="pill-btn" @click="fileInput.click()">
                   <svg viewBox="0 0 24 24"><path d="M16.5,6V17.5A4,4 0 0,1 12.5,21.5A4,4 0 0,1 8.5,17.5V5A2.5,2.5 0 0,1 11,2.5A2.5,2.5 0 0,1 13.5,5V15.5A1,1 0 0,1 12.5,16.5A1,1 0 0,1 11.5,15.5V6H10V15.5A2.5,2.5 0 0,0 12.5,18A2.5,2.5 0 0,0 12.5,18.5V5A4,4 0 0,0 11,1A4,4 0 0,0 7,5V17.5A5.5,5.5 0 0,0 12.5,23A5.5,5.5 0 0,0 18,17.5V6H16.5Z"/></svg>
                 </button>
-                <input type="file" ref="fileInput" hidden multiple />
+                <input type="file" ref="fileInput" hidden multiple @change="handleAttachmentSelection" />
                 <textarea v-model="newMessage" rows="1" :placeholder="$t('chat.input_placeholder')" @keydown.enter.prevent="handleEnterKey" class="gemini-textarea"></textarea>
                 <div class="right-actions">
                    <ModelSelector />
@@ -834,6 +888,16 @@ body.dock-target .top-bar {
 .context-item:hover {
   background: var(--bg-tertiary);
   color: var(--mango-primary);
+}
+
+.virtual-message-list {
+  position: relative;
+  width: 100%;
+}
+
+.virtual-spacer {
+  width: 100%;
+  flex: 0 0 auto;
 }
 
 </style>

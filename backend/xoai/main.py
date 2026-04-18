@@ -9,11 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from xoai.auth.dependencies import require_admin
 from xoai.agents.memory import migrate_embedded_conversation_messages
 from xoai.config import settings, validate_runtime_settings
+from xoai.scheduler.worker import start_scheduler, stop_scheduler
 from xoai.db.mongo import close_mongo, connect_mongo, get_db
 from xoai.db.redis import close_redis, connect_redis, get_redis
 from xoai.job_handlers import register_job_handlers
 from xoai.jobs import job_manager
 from xoai.metrics import metrics
+from xoai.prompts.service import seed_prompt_versions_from_disk
 from xoai.workspace.service import recover_in_progress_file_operations
 
 logger = logging.getLogger("xoai")
@@ -36,18 +38,24 @@ async def lifespan(app: FastAPI):
     await connect_mongo()
     await connect_redis()
     register_job_handlers()
-    await job_manager.enqueue("restore_tenant_bots", {})
+    seeded_prompts = await seed_prompt_versions_from_disk()
+    await job_manager.enqueue("restore_tenant_bots", {"startup_jitter_seconds": settings.restart_jitter_seconds}, jitter_seconds=settings.restart_jitter_seconds)
+    await job_manager.enqueue("storage_gc", {"startup_jitter_seconds": settings.restart_jitter_seconds}, jitter_seconds=settings.restart_jitter_seconds)
     migrated = await migrate_embedded_conversation_messages()
     recovered = await recover_in_progress_file_operations()
+    if seeded_prompts:
+        logger.info("Seeded prompt versions from disk", extra={"count": seeded_prompts})
     if migrated:
         logger.info("Migrated embedded conversation messages", extra={"count": migrated})
     if recovered:
         logger.info("Recovered interrupted file operations", extra={"count": recovered})
     app.state.job_poller = asyncio.create_task(_job_poller())
     job_manager.track_task(app.state.job_poller)
-    logger.info("XOAI ready")
+    await start_scheduler()
+    logger.info("XOAI ready — Chronos scheduler active")
     yield
     logger.info("XOAI shutting down")
+    await stop_scheduler()
     await job_manager.drain()
     from xoai.mcp.client import mcp_manager
 

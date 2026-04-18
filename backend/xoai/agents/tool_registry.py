@@ -5,7 +5,7 @@ import logging
 import re
 from typing import Callable, Any, Dict
 
-from xoai.agents.tools import filesystem, shell, web_search, document, voice, zalo, experience
+from xoai.agents.tools import filesystem, python_exec, shell, web_search, document, voice, zalo, experience
 
 logger = logging.getLogger("xoai.agents.tool_registry")
 
@@ -15,7 +15,16 @@ class ToolRegistry:
         self.tools: Dict[str, Callable] = {}
         self.metadata: Dict[str, dict] = {}
 
-    def register(self, name: str, func: Callable, description: str, requires_approval: bool = False):
+    def register(
+        self,
+        name: str,
+        func: Callable,
+        description: str,
+        requires_approval: bool = False,
+        *,
+        risk_class: str = "read_only",
+        network_policy: str = "network_disabled",
+    ):
         self.tools[name] = func
         
         # Build JSON schema from signature
@@ -43,7 +52,9 @@ class ToolRegistry:
             "name": name,
             "description": description,
             "parameters": parameters,
-            "requires_approval": requires_approval
+            "requires_approval": requires_approval,
+            "risk_class": risk_class,
+            "network_policy": network_policy,
         }
 
     def register_mcp_tools(self, server_name: str, tools: list[dict], user_id: str | None = None, allowed_roles: list[str] | None = None):
@@ -77,6 +88,8 @@ class ToolRegistry:
                 "description": meta["description"],
                 "parameters": meta.get("parameters", {"type": "object", "properties": {}}),
                 "requires_approval": meta.get("requires_approval", False),
+                "risk_class": meta.get("risk_class", "read_only"),
+                "network_policy": meta.get("network_policy", "network_disabled"),
             })
         return defs
 
@@ -137,14 +150,15 @@ async def inject_mcp_tools(reg: ToolRegistry, user_id: str | None = None, role: 
 
 def create_admin_registry(read_only: bool = False) -> ToolRegistry:
     reg = ToolRegistry()
-    reg.register("list_files", filesystem.list_files, "List files in the current workspace.")
-    reg.register("read_file", filesystem.read_file, "Read content of a file. (Path jail enforced)")
-    reg.register("lookup_experience", experience.lookup_experience_tool, "Retrieve prior lessons and experience insights for a profile.")
+    reg.register("list_files", filesystem.list_files, "List files in the current workspace.", risk_class="read_only")
+    reg.register("read_file", filesystem.read_file, "Read content of a file. (Path jail enforced)", risk_class="read_only")
+    reg.register("lookup_experience", experience.lookup_experience_tool, "Retrieve prior lessons and experience insights for a profile.", risk_class="read_only")
     if not read_only:
-        reg.register("write_file", filesystem.write_file, "Write content to a file. (Path jail + 15GB quota enforced)")
-        reg.register("execute_command", shell.execute_command, "Run a shell command in the user's venv.", requires_approval=True)
-    reg.register("search_web", web_search.search_web, "Search the internet via DuckDuckGo.")
-    reg.register("convert_to_docx", document.convert_to_docx, "Convert text content to a .docx file.")
+        reg.register("write_file", filesystem.write_file, "Write content to a file. (Path jail + 15GB quota enforced)", risk_class="mutating_high")
+        reg.register("execute_command", shell.execute_command, "Run a shell command in the user's venv.", requires_approval=True, risk_class="operator_sensitive", network_policy="network_allowlisted")
+        reg.register("execute_python_code", python_exec.execute_python_code, "Execute Python code in an isolated sandbox container with zero-trust network isolation.", risk_class="operator_sensitive", network_policy="network_disabled")
+    reg.register("search_web", web_search.search_web, "Search the internet via DuckDuckGo.", risk_class="external_side_effect", network_policy="network_full_user_scoped")
+    reg.register("convert_to_docx", document.convert_to_docx, "Convert text content to a .docx file.", risk_class="mutating_low")
     # Add voice, zalo, etc.
     return reg
 

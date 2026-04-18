@@ -216,3 +216,75 @@ This pass covered backend hardening, channel attachment resilience, frontend wor
 
 - Frontend build still emits chunk-size warnings, primarily from Monaco/ImageViewer bundles. The earlier i18n warning is gone.
 - The God Mode child-tab bridge depends on `BroadcastChannel`. Modern browsers support it, but older embedded environments may need a fallback if this app is deployed there.
+
+## Project Titan Slice
+
+### Summary
+
+- Implemented a Titan control-plane and operations slice instead of pretending the full multi-quarter architecture could land safely in one pass.
+- Added database-backed prompt registry APIs, database-driven agent profile storage, high-risk tool consensus gating, chunked upload sessions, transient storage GC, startup jitter for background jobs, and operator entrypoint support in `run_xoai.sh`.
+- Added frontend admin tooling for prompt version editing and agent profiles, plus practical performance scaffolding in chat/workspace flows.
+
+### Backend Changes
+
+- Added Mongo-backed prompt registry helpers in `backend/xoai/prompts/service.py` and seeded prompt versions from disk on startup in `backend/xoai/main.py`.
+- Added agent profile, upload session, storage artifact, scheduled task, task run, and memory engram document schemas/indexes in:
+  - `backend/xoai/db/models.py`
+  - `backend/xoai/db/mongo.py`
+- Added transient artifact tracking and TTL-driven storage GC in `backend/xoai/storage_gc.py`, with admin trigger support and startup scheduling.
+- Extended the job system in `backend/xoai/jobs.py` and `backend/xoai/job_handlers.py` to support startup jitter and storage GC execution.
+- Added a first-pass high-risk tool policy layer in `backend/xoai/agents/policy.py`, wired into:
+  - `backend/xoai/agents/base.py`
+  - `backend/xoai/agents/runtime.py`
+  - `backend/xoai/agents/tool_registry.py`
+- Added admin prompt registry and agent profile endpoints in `backend/xoai/admin/router.py`.
+- Reworked workspace uploads in:
+  - `backend/xoai/workspace/router.py`
+  - `backend/xoai/workspace/service.py`
+  to support chunked/resumable uploads and streaming writes without reading the entire payload into RAM.
+
+### Frontend Changes
+
+- Added `frontend/src/components/PromptEditor.vue` and integrated it into `frontend/src/views/AdminDashboard.vue`.
+- Added admin UI controls for database-driven agent profiles and storage-GC preview/run.
+- Updated `frontend/src/services/api.js` to support chunked upload sessions and Titan admin endpoints.
+- Added upload progress handling in `frontend/src/components/WorkspaceContent.vue`.
+- Added IndexedDB-backed chat cache scaffolding in `frontend/src/services/chatCache.js`.
+- Updated `frontend/src/stores/chat.js` with:
+  - conversation hydration from IndexedDB
+  - optimistic user message insertion
+  - BroadcastChannel tab sync
+  - missing `newChat`, `loadChat`, and `currentChatTitle` behaviors used by the UI
+- Updated `frontend/src/views/ChatView.vue` with a bounded virtualized message window so the DOM no longer renders the full message list.
+- Updated `frontend/nginx.conf` for Titan-scale upload ingress:
+  - `client_max_body_size 6g`
+  - disabled proxy request buffering on `/api`
+
+### Operator Entrypoint
+
+- Rewrote `run_xoai.sh` into a real operator entrypoint with:
+  - `help`, `status`, `up`, `down`, `restart`, `logs`, `shell`
+  - `backend`, `frontend`, `build`, `test`
+  - `seed`, `migrate-prompts`, `scheduler-run`, `gc-run`, `health`
+- Added detailed help text covering:
+  - local vs Docker operation
+  - storage locations
+  - sandbox network modes
+  - large upload endpoints
+  - recovery hooks and GC behavior
+
+### Verification
+
+- Backend tests:
+  - `/home/haku/projects/1.xoai/.venv/bin/python -m pytest -q backend/tests`
+  - Result: `32 passed`
+- Frontend build:
+  - `cd /home/haku/projects/1.xoai/frontend && npm run build`
+  - Result: success
+
+### What Did Not Fully Land
+
+- Titan scheduler CRUD, Qdrant/vector retrieval, memory engram generation jobs, prompt diff UI, and a true sandbox runner with egress policy enforcement are not fully implemented yet.
+- The current consensus layer is a working first pass for high-risk tools, not the full resource-hash/idempotent state machine described in the architecture plan.
+- Chat virtualization uses a bounded window implementation rather than a dedicated virtualization library, which is adequate for the current codebase but not the final endpoint.
+- Frontend build still reports chunk-size warnings from heavy editor/viewer bundles.

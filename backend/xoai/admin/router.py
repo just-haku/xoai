@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Any
 
 from bson import ObjectId
@@ -21,6 +21,13 @@ from xoai.agents.evolution import (
 )
 from xoai.agents.experience_consolidator import apply_consolidation_action, list_consolidations
 from xoai.db.mongo import get_db
+from xoai.prompts.service import (
+    activate_prompt_version,
+    create_prompt_version,
+    list_prompt_families,
+    prompt_diff,
+)
+from xoai.storage_gc import run_storage_gc
 
 router = APIRouter()
 logger = logging.getLogger("xoai.admin")
@@ -29,6 +36,36 @@ logger = logging.getLogger("xoai.admin")
 class SettingUpdate(BaseModel):
     key: str
     value: dict
+
+
+class PromptVersionCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    content: str = Field(min_length=1)
+    mutation_reason: str = Field(min_length=3, max_length=200)
+
+
+class AgentProfileRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_key: str = Field(min_length=2, max_length=64)
+    role: str = Field(min_length=2, max_length=64)
+    display_name: str = Field(min_length=2, max_length=120)
+    prompt_name: str = Field(min_length=2, max_length=64)
+    provider: str = Field(min_length=2, max_length=32)
+    model: str = Field(min_length=1, max_length=200)
+    key: str | None = None
+    base_url: str | None = None
+    tool_allowlist: list[str] = Field(default_factory=list)
+    risk_policy: dict = Field(default_factory=dict)
+    enabled: bool = True
+    max_concurrency: int = Field(default=1, ge=1, le=64)
+
+
+class GcRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dry_run: bool = False
 
 
 def _serialize_user_summary(user: dict) -> dict:
@@ -198,6 +235,67 @@ async def get_query_run_detail(query_id: str, _=Depends(require_admin)):
     return _serialize_document(run)
 
 
+@router.get("/prompts")
+async def list_prompt_registry(_=Depends(require_admin)):
+    return _serialize_document(await list_prompt_families())
+
+
+@router.post("/prompts/{role}/versions")
+async def create_prompt_registry_version(role: str, req: PromptVersionCreateRequest, admin: dict = Depends(require_admin)):
+    return _serialize_document(await create_prompt_version(role, req.content, req.mutation_reason, admin["id"]))
+
+
+@router.post("/prompts/versions/{version_id}/activate")
+async def activate_prompt_registry_version(version_id: str, _=Depends(require_admin)):
+    return _serialize_document(await activate_prompt_version(version_id))
+
+
+@router.get("/prompts/versions/{version_id}/diff")
+async def get_prompt_registry_diff(version_id: str, _=Depends(require_admin)):
+    return _serialize_document(await prompt_diff(version_id))
+
+
+@router.get("/agent-profiles")
+async def list_agent_profiles(_=Depends(require_admin)):
+    db = get_db()
+    docs = await db.agent_profiles.find({}).sort([("role", 1), ("agent_key", 1)]).to_list(200)
+    return [_serialize_document(doc) for doc in docs]
+
+
+@router.post("/agent-profiles")
+async def create_agent_profile(req: AgentProfileRequest, _=Depends(require_admin)):
+    db = get_db()
+    doc = req.model_dump()
+    doc["created_at"] = datetime.utcnow()
+    doc["updated_at"] = datetime.utcnow()
+    await db.agent_profiles.update_one({"agent_key": req.agent_key}, {"$set": doc}, upsert=True)
+    stored = await db.agent_profiles.find_one({"agent_key": req.agent_key})
+    return _serialize_document(stored)
+
+
+@router.put("/agent-profiles/{agent_key}")
+async def update_agent_profile(agent_key: str, req: AgentProfileRequest, _=Depends(require_admin)):
+    db = get_db()
+    payload = req.model_dump()
+    payload["agent_key"] = agent_key
+    payload["updated_at"] = datetime.utcnow()
+    await db.agent_profiles.update_one({"agent_key": agent_key}, {"$set": payload}, upsert=True)
+    stored = await db.agent_profiles.find_one({"agent_key": agent_key})
+    return _serialize_document(stored)
+
+
+@router.delete("/agent-profiles/{agent_key}")
+async def delete_agent_profile(agent_key: str, _=Depends(require_admin)):
+    db = get_db()
+    await db.agent_profiles.delete_one({"agent_key": agent_key})
+    return {"status": "deleted", "agent_key": agent_key}
+
+
+@router.post("/storage-gc/run")
+async def trigger_storage_gc(req: GcRunRequest, _=Depends(require_admin)):
+    return _serialize_document(await run_storage_gc(dry_run=req.dry_run))
+
+
 @router.get("/experience/insights")
 async def list_experience_insights(limit: int = 50, _=Depends(require_admin)):
     db = get_db()
@@ -302,3 +400,85 @@ async def rollback_version(version_id: str, _=Depends(require_admin)):
         return _serialize_document(await rollback_prompt_version(version_id))
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+# --- Scheduler CRUD ---
+
+class ScheduledTaskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=2, max_length=120)
+    cron: str = Field(min_length=5, max_length=64)
+    timezone: str = Field(default="UTC", max_length=64)
+    enabled: bool = True
+    agent_key: str = Field(min_length=2, max_length=64)
+    workspace_scope: Optional[str] = None
+    tool_policy: dict = Field(default_factory=dict)
+    payload: dict = Field(default_factory=dict)
+
+
+class ScheduledTaskToggle(BaseModel):
+    enabled: bool
+
+
+@router.get("/scheduled-tasks")
+async def list_scheduled_tasks(limit: int = 100, _=Depends(require_admin)):
+    from xoai.scheduler import list_scheduled_tasks as _list
+    return [_serialize_document(t) for t in await _list(limit)]
+
+
+@router.get("/scheduled-tasks/{task_id}")
+async def get_scheduled_task(task_id: str, _=Depends(require_admin)):
+    from xoai.scheduler import get_scheduled_task as _get
+    try:
+        return _serialize_document(await _get(task_id))
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/scheduled-tasks")
+async def create_scheduled_task(req: ScheduledTaskRequest, admin: dict = Depends(require_admin)):
+    from xoai.scheduler import create_scheduled_task as _create
+    doc = await _create(req.model_dump(), admin["id"])
+    return _serialize_document(doc)
+
+
+@router.put("/scheduled-tasks/{task_id}")
+async def update_scheduled_task(task_id: str, req: ScheduledTaskRequest, _=Depends(require_admin)):
+    from xoai.scheduler import update_scheduled_task as _update
+    return _serialize_document(await _update(task_id, req.model_dump()))
+
+
+@router.patch("/scheduled-tasks/{task_id}/toggle")
+async def toggle_scheduled_task(task_id: str, req: ScheduledTaskToggle, _=Depends(require_admin)):
+    from xoai.scheduler import toggle_scheduled_task as _toggle
+    return _serialize_document(await _toggle(task_id, req.enabled))
+
+
+@router.delete("/scheduled-tasks/{task_id}")
+async def delete_scheduled_task(task_id: str, _=Depends(require_admin)):
+    from xoai.scheduler import delete_scheduled_task as _delete
+    await _delete(task_id)
+    return {"status": "deleted"}
+
+
+@router.get("/scheduled-tasks/{task_id}/runs")
+async def list_task_runs(task_id: str, limit: int = 50, _=Depends(require_admin)):
+    from xoai.scheduler import list_task_runs as _runs
+    return [_serialize_document(r) for r in await _runs(task_id, limit)]
+
+
+# --- Engram Compaction ---
+
+class EngramCompactionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    stale_days: int = Field(default=7, ge=1, le=365)
+    batch_size: int = Field(default=50, ge=1, le=500)
+
+
+@router.post("/engram-compaction/run")
+async def trigger_engram_compaction(req: EngramCompactionRequest, _=Depends(require_admin)):
+    from xoai.agents.memory import compact_engrams
+    return _serialize_document(await compact_engrams(stale_days=req.stale_days, batch_size=req.batch_size))
+

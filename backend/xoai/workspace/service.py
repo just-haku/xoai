@@ -6,9 +6,11 @@ import hashlib
 import logging
 import os
 import shutil
+import uuid
 from datetime import datetime, timezone
 
 from xoai.config import settings
+from xoai.storage_gc import track_storage_artifact, untrack_storage_artifact
 
 QUOTA_LIMIT_BYTES = 5 * 1024 * 1024 * 1024  # 5GB default
 ADMIN_QUOTA_BYPASS = True
@@ -23,6 +25,10 @@ def get_user_workspace(user_id: str) -> str:
 def get_user_venv(user_id: str) -> str:
     """Return the venv path for a user."""
     return os.path.join(settings.xoai_storage, "users", user_id, "venv")
+
+
+def get_user_upload_tmp(user_id: str) -> str:
+    return os.path.join(settings.xoai_storage, "users", user_id, "tmp", "uploads")
 
 
 def resolve_safe_path(user_id: str, relative_path: str, workspace: str = None) -> str:
@@ -112,10 +118,58 @@ async def atomic_write_bytes(user_id: str, filepath: str, payload: bytes) -> Non
     if os.path.exists(backup_path):
         os.remove(backup_path)
     await mark_file_operation(user_id, filepath, "completed", backup_path)
+    await untrack_storage_artifact(user_id, backup_path)
 
 
 async def atomic_write_text(user_id: str, filepath: str, content: str) -> None:
     await atomic_write_bytes(user_id, filepath, content.encode("utf-8"))
+
+
+async def atomic_replace_file(user_id: str, filepath: str, temp_path: str) -> None:
+    backup_path = backup_path_for(filepath)
+    await mark_file_operation(user_id, filepath, "in_progress", backup_path)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    if os.path.exists(filepath):
+        shutil.copy2(filepath, backup_path)
+    os.replace(temp_path, filepath)
+    if os.path.exists(backup_path):
+        os.remove(backup_path)
+    await mark_file_operation(user_id, filepath, "completed", backup_path)
+
+
+def create_upload_session_path(user_id: str, upload_id: str) -> str:
+    session_dir = os.path.join(get_user_upload_tmp(user_id), upload_id)
+    os.makedirs(session_dir, exist_ok=True)
+    return session_dir
+
+
+def upload_chunk_path(user_id: str, upload_id: str, chunk_index: int) -> str:
+    session_dir = create_upload_session_path(user_id, upload_id)
+    return os.path.join(session_dir, f"chunk_{chunk_index:08d}.part")
+
+
+def merge_upload_chunks(user_id: str, upload_id: str, total_chunks: int, destination_path: str) -> tuple[int, str, str]:
+    session_dir = create_upload_session_path(user_id, upload_id)
+    temp_path = f"{destination_path}.uploading.{uuid.uuid4().hex}"
+    hasher = hashlib.sha256()
+    total_bytes = 0
+    with open(temp_path, "wb") as out:
+        for chunk_index in range(total_chunks):
+            part_path = os.path.join(session_dir, f"chunk_{chunk_index:08d}.part")
+            if not os.path.exists(part_path):
+                raise FileNotFoundError(f"Missing upload chunk {chunk_index}")
+            with open(part_path, "rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    out.write(chunk)
+                    hasher.update(chunk)
+                    total_bytes += len(chunk)
+    return total_bytes, hasher.hexdigest(), temp_path
+
+
+def cleanup_upload_session_files(user_id: str, upload_id: str) -> None:
+    session_dir = os.path.join(get_user_upload_tmp(user_id), upload_id)
+    if os.path.isdir(session_dir):
+        shutil.rmtree(session_dir, ignore_errors=True)
 
 
 async def recover_in_progress_file_operations() -> int:

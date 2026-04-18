@@ -9,6 +9,19 @@ export default defineConfig({
             '@': fileURLToPath(new URL('./src', import.meta.url))
         }
     },
+    build: {
+        chunkSizeWarningLimit: 800,
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-vue': ['vue', 'vue-router', 'vue-i18n', 'pinia'],
+                    'vendor-monaco': ['monaco-editor'],
+                    'vendor-markdown': ['marked'],
+                    'vendor-utils': ['dompurify'],
+                },
+            },
+        },
+    },
     server: {
         port: 3080,
         host: true,

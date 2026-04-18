@@ -145,6 +145,68 @@
         <div class="action-bar-sticky">
           <button class="mango-button" @click="saveAgentSettings">{{ t('admin.dashboard.agents.save') }}</button>
         </div>
+        <section class="glass-panel runtime-panel mt-6">
+          <div class="section-head">
+            <div>
+              <h3>Titan Agent Profiles</h3>
+              <p>Database-driven swarm agents with explicit prompt, tools, concurrency, and network policy.</p>
+            </div>
+            <button class="btn-micro" @click="runStorageGcPreview(true)">Preview GC</button>
+          </div>
+          <div class="form-grid">
+            <div class="input-group">
+              <label>Agent Key</label>
+              <input v-model="agentProfileForm.agent_key" placeholder="executor_research" />
+            </div>
+            <div class="input-group">
+              <label>Role</label>
+              <input v-model="agentProfileForm.role" placeholder="executor" />
+            </div>
+            <div class="input-group">
+              <label>Display Name</label>
+              <input v-model="agentProfileForm.display_name" placeholder="Executor Research" />
+            </div>
+            <div class="input-group">
+              <label>Prompt</label>
+              <input v-model="agentProfileForm.prompt_name" placeholder="executor" />
+            </div>
+            <div class="input-group">
+              <label>Provider</label>
+              <input v-model="agentProfileForm.provider" placeholder="gemini" />
+            </div>
+            <div class="input-group">
+              <label>Model</label>
+              <input v-model="agentProfileForm.model" placeholder="gemini-1.5-flash" />
+            </div>
+            <div class="input-group">
+              <label>Network Mode</label>
+              <input v-model="agentProfileForm.risk_policy.network_mode" placeholder="network_disabled" />
+            </div>
+            <div class="input-group">
+              <label>Tool Allowlist</label>
+              <input :value="agentProfileForm.tool_allowlist.join(', ')" @input="agentProfileForm.tool_allowlist = $event.target.value.split(',').map(v => v.trim()).filter(Boolean)" placeholder="list_files, read_file" />
+            </div>
+          </div>
+          <div class="action-bar-sticky">
+            <button class="mango-button" @click="saveAgentProfile">Save Agent Profile</button>
+            <button class="btn-micro" @click="runStorageGcPreview(false)">Run Storage GC</button>
+          </div>
+          <div v-if="gcPreview" class="runtime-detail-block mt-4">
+            <label>Storage GC</label>
+            <pre>{{ JSON.stringify(gcPreview, null, 2) }}</pre>
+          </div>
+          <div class="candidate-table mt-4">
+            <div v-for="profile in agentProfiles" :key="profile.agent_key" class="candidate-row">
+              <div class="candidate-main">
+                <div><strong>{{ profile.display_name }}</strong> · <span class="runtime-meta">{{ profile.role }} · {{ profile.provider }} / {{ profile.model }}</span></div>
+                <div class="candidate-reason">{{ profile.agent_key }} · tools={{ (profile.tool_allowlist || []).join(', ') || 'all' }}</div>
+              </div>
+              <div class="action-cell">
+                <button class="btn-micro" @click="loadAgentProfile(profile)">Load</button>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- INFRA TAB -->
@@ -479,6 +541,7 @@
             </div>
           </div>
         </section>
+        <PromptEditor :prompts="promptFamilies" :versions="promptVersions" @refresh="fetchRuntimeData" />
       </div>
 
       <!-- MCP TAB -->
@@ -572,6 +635,91 @@
         </div>
       </div>
 
+      <!-- SCHEDULER TAB -->
+      <div v-if="activeTab === 'scheduler'" class="tab-pane">
+        <section class="glass-panel runtime-panel">
+          <div class="section-head">
+            <div>
+              <h3>Scheduler</h3>
+              <p>Create and manage recurring scheduled tasks backed by your agent swarm.</p>
+            </div>
+            <button class="btn-micro" @click="fetchSchedulerData">Refresh</button>
+          </div>
+          <div class="form-grid">
+            <div class="input-group">
+              <label>Task Name</label>
+              <input v-model="schedulerForm.name" placeholder="weekly_report_gen" />
+            </div>
+            <div class="input-group">
+              <label>Cron Expression</label>
+              <input v-model="schedulerForm.cron" placeholder="0 8 * * 1" :class="{ 'input-error': cronError }" @input="validateCron" />
+              <div v-if="cronError" class="field-error">{{ cronError }}</div>
+              <div v-else-if="schedulerForm.cron && !cronError" class="field-hint">Valid cron expression</div>
+            </div>
+            <div class="input-group">
+              <label>Agent Key</label>
+              <input v-model="schedulerForm.agent_key" placeholder="executor" />
+            </div>
+            <div class="input-group">
+              <label>Timezone</label>
+              <input v-model="schedulerForm.timezone" placeholder="UTC" />
+            </div>
+            <div class="input-group full-span">
+              <label>Payload (JSON)</label>
+              <textarea v-model="schedulerForm.payloadText" rows="3" placeholder='{"key": "value"}'></textarea>
+            </div>
+          </div>
+          <div class="action-bar-sticky">
+            <button class="mango-button" @click="saveScheduledTask">{{ schedulerEditingId ? 'Update Task' : 'Create Task' }}</button>
+            <button v-if="schedulerEditingId" class="btn-micro" @click="resetSchedulerForm">Cancel</button>
+          </div>
+          <div class="candidate-table mt-4">
+            <div v-for="task in scheduledTasks" :key="task.id" class="candidate-row">
+              <div class="candidate-main">
+                <div>
+                  <strong>{{ task.name }}</strong>
+                  <span class="runtime-meta"> · {{ task.cron }} · {{ task.timezone || 'UTC' }}</span>
+                </div>
+                <div class="candidate-reason">agent={{ task.agent_key }} · {{ task.enabled ? '✅ enabled' : '⏸ disabled' }}</div>
+                <div class="runtime-meta">last={{ formatDate(task.last_run_at) }} · next={{ formatDate(task.next_run_at) }}</div>
+              </div>
+              <div class="action-cell">
+                <button class="btn-micro" @click="editScheduledTask(task)">Edit</button>
+                <button class="btn-micro" :class="task.enabled ? 'danger' : 'success'" @click="toggleTask(task)">{{ task.enabled ? 'Disable' : 'Enable' }}</button>
+                <button class="btn-micro danger" @click="deleteTask(task)">Delete</button>
+              </div>
+            </div>
+            <div v-if="scheduledTasks.length === 0" class="empty-state">No scheduled tasks configured.</div>
+          </div>
+        </section>
+
+        <section class="glass-panel runtime-panel mt-6">
+          <div class="section-head">
+            <div>
+              <h3>Engram Compaction</h3>
+              <p>Manually trigger memory compaction to summarize stale conversations into dense engrams.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="input-group">
+              <label>Stale Days Threshold</label>
+              <input type="number" v-model.number="engramCompaction.staleDays" min="1" max="365" />
+            </div>
+            <div class="input-group">
+              <label>Batch Size</label>
+              <input type="number" v-model.number="engramCompaction.batchSize" min="1" max="500" />
+            </div>
+          </div>
+          <div class="action-bar-sticky">
+            <button class="mango-button" :disabled="engramCompaction.running" @click="runEngramCompaction">{{ engramCompaction.running ? 'Running...' : 'Run Compaction' }}</button>
+          </div>
+          <div v-if="engramCompaction.result" class="runtime-detail-block mt-4">
+            <label>Compaction Result</label>
+            <pre>{{ JSON.stringify(engramCompaction.result, null, 2) }}</pre>
+          </div>
+        </section>
+      </div>
+
       <!-- GODMODE TAB -->
       <div v-if="activeTab === 'godMode'" class="tab-pane">
         <div class="godmode-warning glass-panel">
@@ -614,6 +762,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '../services/api'
 import { useUIStore } from '../stores/ui'
 import CSelect from '../components/common/CSelect.vue'
+import PromptEditor from '../components/PromptEditor.vue'
 
 const uiStore = useUIStore()
 const { t } = useI18n()
@@ -626,6 +775,7 @@ const tabs = computed(() => [
   { id: 'runtime', label: t('admin.dashboard.tabs.runtime.label'), description: t('admin.dashboard.tabs.runtime.desc') },
   { id: 'mcp', label: t('admin.dashboard.tabs.mcp.label'), description: t('admin.dashboard.tabs.mcp.desc') },
   { id: 'infra', label: t('admin.dashboard.tabs.infra.label'), description: t('admin.dashboard.tabs.infra.desc') },
+  { id: 'scheduler', label: 'Scheduler', description: 'Manage scheduled tasks & engram compaction jobs.' },
   { id: 'godMode', label: t('admin.dashboard.tabs.godMode.label'), description: t('admin.dashboard.tabs.godMode.desc') }
 ])
 
@@ -636,6 +786,7 @@ const getIcon = (id) => {
     case 'runtime': return '<svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4m9 0h7v4h-7V4M4 13h4v7H4v-7m6 0h10v7H10v-7Z"/></svg>'
     case 'mcp': return '<svg viewBox="0 0 24 24"><path d="M7 2v11H3l5 9 5-9H9V2H7m9 0a3 3 0 0 0-3 3v6h2V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v6h2V5a3 3 0 0 0-3-3h-2m-1 11v9h2v-9h-2m4 0v9h2v-9h-2Z"/></svg>'
     case 'infra': return '<svg viewBox="0 0 24 24"><path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z"/></svg>'
+    case 'scheduler': return '<svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>'
     case 'godMode': return '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>'
     default: return ''
   }
@@ -682,9 +833,42 @@ const experienceLessons = ref([])
 const experienceConsolidations = ref([])
 const promptCandidates = ref([])
 const promptVersions = ref([])
+const promptFamilies = ref([])
 const selectedQueryRun = ref(null)
 const selectedPromptVersion = ref(null)
 const candidateBenchmarks = ref({})
+const agentProfiles = ref([])
+const gcPreview = ref(null)
+const agentProfileForm = reactive({
+  agent_key: '',
+  role: '',
+  display_name: '',
+  prompt_name: '',
+  provider: 'gemini',
+  model: '',
+  key: '',
+  base_url: '',
+  tool_allowlist: [],
+  risk_policy: { network_mode: 'network_disabled' },
+  enabled: true,
+  max_concurrency: 1,
+})
+const scheduledTasks = ref([])
+const schedulerEditingId = ref(null)
+const schedulerForm = reactive({
+  name: '',
+  cron: '0 8 * * 1',
+  timezone: 'UTC',
+  agent_key: 'executor',
+  payloadText: '{}',
+})
+const cronError = ref('')
+const engramCompaction = reactive({
+  staleDays: 7,
+  batchSize: 50,
+  running: false,
+  result: null,
+})
 const mcpServers = ref([])
 const mcpEditingId = ref(null)
 const mcpForm = reactive({
@@ -778,6 +962,14 @@ const fetchUsers = async () => {
   } catch (err) {}
 }
 
+const fetchAgentProfiles = async () => {
+  try {
+    agentProfiles.value = await api.admin.listAgentProfiles()
+  } catch (err) {
+    uiStore.notify(err.message, 'danger')
+  }
+}
+
 const fetchSettings = async () => {
   // Graceful helper for individual settings
   const getSafe = async (key) => {
@@ -830,6 +1022,45 @@ const saveAgentSettings = async () => {
     uiStore.notify(t('admin.dashboard.notifications.agent_saved'), 'success')
   } catch (err) {
     uiStore.notify(t('admin.dashboard.notifications.agent_failed', { error: err.message }), 'danger')
+  }
+}
+
+const loadAgentProfile = (profile) => {
+  Object.assign(agentProfileForm, {
+    agent_key: profile.agent_key,
+    role: profile.role,
+    display_name: profile.display_name,
+    prompt_name: profile.prompt_name,
+    provider: profile.provider,
+    model: profile.model,
+    key: profile.key || '',
+    base_url: profile.base_url || '',
+    tool_allowlist: [...(profile.tool_allowlist || [])],
+    risk_policy: { ...(profile.risk_policy || { network_mode: 'network_disabled' }) },
+    enabled: profile.enabled !== false,
+    max_concurrency: profile.max_concurrency || 1,
+  })
+}
+
+const saveAgentProfile = async () => {
+  try {
+    await api.admin.saveAgentProfile({
+      ...agentProfileForm,
+      tool_allowlist: agentProfileForm.tool_allowlist.filter(Boolean),
+    })
+    uiStore.notify(`Saved agent profile ${agentProfileForm.agent_key}`, 'success')
+    fetchAgentProfiles()
+  } catch (err) {
+    uiStore.notify(err.message, 'danger')
+  }
+}
+
+const runStorageGcPreview = async (dryRun = true) => {
+  try {
+    gcPreview.value = await api.admin.runStorageGc(dryRun)
+    uiStore.notify(dryRun ? 'Storage GC dry run complete' : 'Storage GC completed', 'success')
+  } catch (err) {
+    uiStore.notify(err.message, 'danger')
   }
 }
 
@@ -953,13 +1184,14 @@ const launchGodMode = async (user) => {
 
 const fetchRuntimeData = async () => {
   try {
-    const [runs, insights, lessons, consolidations, candidates, versions] = await Promise.all([
+    const [runs, insights, lessons, consolidations, candidates, versions, prompts] = await Promise.all([
       api.admin.listQueryRuns(),
       api.admin.listExperienceInsights(),
       api.admin.listExperienceLessons(),
       api.admin.listExperienceConsolidations(),
       api.admin.listPromptCandidates(),
       api.admin.listPromptVersions(),
+      api.admin.listPrompts(),
     ])
     queryRuns.value = runs
     experienceInsights.value = insights
@@ -967,6 +1199,7 @@ const fetchRuntimeData = async () => {
     experienceConsolidations.value = consolidations
     promptCandidates.value = candidates
     promptVersions.value = versions
+    promptFamilies.value = prompts
   } catch (err) {
     uiStore.notify(t('admin.dashboard.notifications.runtime_load_failed', { error: err.message }), 'danger')
   }
@@ -1198,15 +1431,160 @@ const toggleAllowedRole = (role) => {
   mcpForm.allowedRoles = [...mcpForm.allowedRoles, role]
 }
 
+// Scheduler methods
+const fetchSchedulerData = async () => {
+  try {
+    scheduledTasks.value = await api.admin.listScheduledTasks()
+  } catch (err) {
+    uiStore.notify(err.message, 'danger')
+  }
+}
+
+const validateCron = () => {
+  const expr = schedulerForm.cron.trim()
+  if (!expr) {
+    cronError.value = ''
+    return
+  }
+  // Standard 5-field cron: minute hour dom month dow
+  const parts = expr.split(/\s+/)
+  if (parts.length < 5 || parts.length > 6) {
+    cronError.value = `Expected 5 fields (min hour dom mon dow), got ${parts.length}`
+    return
+  }
+  // Field ranges
+  const ranges = [
+    { name: 'minute', min: 0, max: 59 },
+    { name: 'hour', min: 0, max: 23 },
+    { name: 'day', min: 1, max: 31 },
+    { name: 'month', min: 1, max: 12 },
+    { name: 'weekday', min: 0, max: 7 },
+  ]
+  // cron field regex: allows *, */N, N, N-M, N-M/S, and comma-separated values
+  const fieldPattern = /^(\*|[0-9]+(-[0-9]+)?)(\/[0-9]+)?(,(\*|[0-9]+(-[0-9]+)?)(\/[0-9]+)?)*$/
+  for (let i = 0; i < 5; i++) {
+    if (!fieldPattern.test(parts[i])) {
+      cronError.value = `Invalid ${ranges[i].name} field: "${parts[i]}"`
+      return
+    }
+  }
+  cronError.value = ''
+}
+
+const saveScheduledTask = async () => {
+  if (!schedulerForm.name || !schedulerForm.cron || !schedulerForm.agent_key) {
+    uiStore.notify('Name, cron, and agent key are required.', 'warning')
+    return
+  }
+  // Validate cron before sending
+  validateCron()
+  if (cronError.value) {
+    uiStore.notify(`Invalid cron expression: ${cronError.value}`, 'danger')
+    return
+  }
+  let payload = {}
+  try {
+    payload = schedulerForm.payloadText.trim() ? JSON.parse(schedulerForm.payloadText) : {}
+  } catch {
+    uiStore.notify('Invalid JSON in payload.', 'warning')
+    return
+  }
+  const data = {
+    name: schedulerForm.name,
+    cron: schedulerForm.cron,
+    timezone: schedulerForm.timezone,
+    agent_key: schedulerForm.agent_key,
+    enabled: true,
+    payload,
+  }
+  try {
+    if (schedulerEditingId.value) {
+      await api.admin.updateScheduledTask(schedulerEditingId.value, data)
+      uiStore.notify(`Updated task ${data.name}`, 'success')
+    } else {
+      await api.admin.createScheduledTask(data)
+      uiStore.notify(`Created task ${data.name}`, 'success')
+    }
+    resetSchedulerForm()
+    fetchSchedulerData()
+  } catch (err) {
+    uiStore.notify(err.message, 'danger')
+  }
+}
+
+const editScheduledTask = (task) => {
+  schedulerEditingId.value = task.id
+  Object.assign(schedulerForm, {
+    name: task.name,
+    cron: task.cron,
+    timezone: task.timezone || 'UTC',
+    agent_key: task.agent_key,
+    payloadText: JSON.stringify(task.payload || {}, null, 2),
+  })
+}
+
+const toggleTask = async (task) => {
+  try {
+    await api.admin.toggleScheduledTask(task.id, !task.enabled)
+    uiStore.notify(`${task.name} ${task.enabled ? 'disabled' : 'enabled'}`, 'success')
+    fetchSchedulerData()
+  } catch (err) {
+    uiStore.notify(err.message, 'danger')
+  }
+}
+
+const deleteTask = async (task) => {
+  const ok = await uiStore.confirm('Delete Task', `Delete scheduled task "${task.name}"?`)
+  if (!ok) return
+  try {
+    await api.admin.deleteScheduledTask(task.id)
+    uiStore.notify(`Deleted task ${task.name}`, 'info')
+    if (schedulerEditingId.value === task.id) resetSchedulerForm()
+    fetchSchedulerData()
+  } catch (err) {
+    uiStore.notify(err.message, 'danger')
+  }
+}
+
+const resetSchedulerForm = () => {
+  schedulerEditingId.value = null
+  cronError.value = ''
+  Object.assign(schedulerForm, {
+    name: '',
+    cron: '0 8 * * 1',
+    timezone: 'UTC',
+    agent_key: 'executor',
+    payloadText: '{}',
+  })
+}
+
+const runEngramCompaction = async () => {
+  engramCompaction.running = true
+  try {
+    engramCompaction.result = await api.admin.runEngramCompaction({
+      stale_days: engramCompaction.staleDays,
+      batch_size: engramCompaction.batchSize,
+    })
+    uiStore.notify('Engram compaction complete', 'success')
+  } catch (err) {
+    uiStore.notify(err.message, 'danger')
+  } finally {
+    engramCompaction.running = false
+  }
+}
+
 watch(activeTab, (tab) => {
   if (tab === 'runtime') fetchRuntimeData()
   if (tab === 'mcp') fetchMcpData()
+  if (tab === 'agents') fetchAgentProfiles()
+  if (tab === 'scheduler') fetchSchedulerData()
 })
 
 onMounted(() => {
   fetchSettings()
   fetchStats()
   fetchUsers()
+  fetchAgentProfiles()
 })
 </script>
 
@@ -1339,6 +1717,26 @@ onMounted(() => {
 }
 
 .input-group label { display: block; font-size: 11px; font-weight: 800; color: var(--mango-primary); text-transform: uppercase; margin-bottom: 8px; }
+
+.field-error {
+  font-size: 11px;
+  color: #ff5050;
+  margin-top: 4px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.field-hint {
+  font-size: 11px;
+  color: #50c878;
+  margin-top: 4px;
+  font-weight: 600;
+  opacity: 0.8;
+  letter-spacing: 0.3px;
+}
+.input-error {
+  border-color: #ff5050 !important;
+  box-shadow: 0 0 0 1px rgba(255, 80, 80, 0.3);
+}
 
 .label-with-action {
   display: flex;

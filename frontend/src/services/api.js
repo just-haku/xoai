@@ -145,6 +145,55 @@ export const api = {
         rollbackPromptVersion: (versionId) => api.request(`/admin/prompt-versions/${versionId}/rollback`, {
             method: 'POST',
         }),
+        listPrompts: () => api.request('/admin/prompts'),
+        createPromptVersion: (role, data) => api.request(`/admin/prompts/${role}/versions`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+        activatePromptVersion: (versionId) => api.request(`/admin/prompts/versions/${versionId}/activate`, {
+            method: 'POST',
+        }),
+        getPromptDiff: (versionId) => api.request(`/admin/prompts/versions/${versionId}/diff`),
+        listAgentProfiles: () => api.request('/admin/agent-profiles'),
+        saveAgentProfile: (data) => api.request('/admin/agent-profiles', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+        updateAgentProfile: (agentKey, data) => api.request(`/admin/agent-profiles/${agentKey}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+        deleteAgentProfile: (agentKey) => api.request(`/admin/agent-profiles/${agentKey}`, {
+            method: 'DELETE',
+        }),
+        runStorageGc: (dryRun = true) => api.request('/admin/storage-gc/run', {
+            method: 'POST',
+            body: JSON.stringify({ dry_run: dryRun }),
+        }),
+        // Scheduler CRUD
+        listScheduledTasks: () => api.request('/admin/scheduled-tasks'),
+        getScheduledTask: (taskId) => api.request(`/admin/scheduled-tasks/${taskId}`),
+        createScheduledTask: (data) => api.request('/admin/scheduled-tasks', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+        updateScheduledTask: (taskId, data) => api.request(`/admin/scheduled-tasks/${taskId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+        toggleScheduledTask: (taskId, enabled) => api.request(`/admin/scheduled-tasks/${taskId}/toggle`, {
+            method: 'PATCH',
+            body: JSON.stringify({ enabled }),
+        }),
+        deleteScheduledTask: (taskId) => api.request(`/admin/scheduled-tasks/${taskId}`, {
+            method: 'DELETE',
+        }),
+        listTaskRuns: (taskId) => api.request(`/admin/scheduled-tasks/${taskId}/runs`),
+        // Engram Compaction
+        runEngramCompaction: (data = {}) => api.request('/admin/engram-compaction/run', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
     },
 
     mcp: {
@@ -167,20 +216,60 @@ export const api = {
 
     workspace: {
         listFiles: () => api.request('/workspace/files'),
-        uploadFile: (file, path = '') => {
+        initUpload: (data) => api.request('/workspace/files/upload/init', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+        uploadChunk: (uploadId, chunkIndex, blob, filename = 'chunk.bin') => {
             const formData = new FormData()
-            formData.append('file', file)
-            return fetch(`${API_BASE}/workspace/files/upload?path=${encodeURIComponent(path)}`, {
-                method: 'POST',
+            formData.append('file', new File([blob], filename))
+            return fetch(`${API_BASE}/workspace/files/upload/${uploadId}/chunk/${chunkIndex}`, {
+                method: 'PUT',
                 headers: api.authHeaders(),
                 body: formData,
             }).then(async res => {
                 if (!res.ok) {
                     const error = await res.json().catch(() => ({}))
-                    throw new Error(error.detail || 'Upload failed')
+                    throw new Error(error.detail || 'Chunk upload failed')
                 }
                 return res.json()
             })
-        }
+        },
+        completeUpload: (uploadId, data = {}) => api.request(`/workspace/files/upload/${uploadId}/complete`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+        abortUpload: (uploadId) => api.request(`/workspace/files/upload/${uploadId}`, {
+            method: 'DELETE',
+        }),
+        uploadFile: async (file, path = '', onProgress = null) => {
+            const fallbackChunkSize = 8 * 1024 * 1024
+            const requestedChunks = Math.max(1, Math.ceil(file.size / fallbackChunkSize))
+            const init = await api.workspace.initUpload({
+                path,
+                filename: file.name,
+                total_size: file.size,
+                total_chunks: requestedChunks,
+                mime_type: file.type || 'application/octet-stream',
+            })
+            const chunkSize = init.chunk_size || fallbackChunkSize
+            const totalChunks = init.total_chunks || requestedChunks
+            let uploadedBytes = 0
+            try {
+                for (let index = 0; index < totalChunks; index += 1) {
+                    const start = index * chunkSize
+                    if (start >= file.size) break
+                    const end = Math.min(file.size, start + chunkSize)
+                    const chunk = file.slice(start, end)
+                    await api.workspace.uploadChunk(init.upload_id, index, chunk, `${file.name}.part`)
+                    uploadedBytes += chunk.size
+                    if (onProgress) onProgress({ uploadedBytes, totalBytes: file.size })
+                }
+                return await api.workspace.completeUpload(init.upload_id)
+            } catch (error) {
+                await api.workspace.abortUpload(init.upload_id).catch(() => {})
+                throw error
+            }
+        },
     }
 }

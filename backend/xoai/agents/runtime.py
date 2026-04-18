@@ -10,6 +10,7 @@ from typing import AsyncIterator
 from pydantic import ValidationError
 
 from xoai.agents.base import BaseAgent
+from xoai.agents.policy import get_agent_profile
 from xoai.agents.experience import (
     append_node_event,
     complete_node,
@@ -181,6 +182,14 @@ async def _build_node_stream(
 
 
 async def _get_agent_config_for_node(user: dict, node: ExecutionNode) -> dict | None:
+    profile = await get_agent_profile(role=node.role)
+    if profile:
+        return {
+            "provider": profile["provider"],
+            "key": profile.get("key"),
+            "model": profile["model"],
+            "base_url": profile.get("base_url"),
+        }
     if node.role == "architect":
         return await get_agent_config("agent_1")
     if node.role == "executor":
@@ -193,14 +202,15 @@ async def _get_agent_config_for_node(user: dict, node: ExecutionNode) -> dict | 
 
 
 async def _get_registry_for_node(user: dict, node: ExecutionNode):
+    profile = await get_agent_profile(role=node.role)
     if node.role == "architect":
         reg = create_admin_registry(read_only=True)
         await inject_mcp_tools(reg, user_id=user["id"], role="admin")
-        return reg
-    if node.role == "executor":
+        return _apply_tool_allowlist(reg, profile)
+    if node.role == "executor" or profile:
         reg = create_admin_registry()
         await inject_mcp_tools(reg, user_id=user["id"], role="admin")
-        return reg
+        return _apply_tool_allowlist(reg, profile)
     if node.role == "user_agent":
         reg = create_user_registry()
         await inject_mcp_tools(reg, user_id=user["id"], role="user")
@@ -215,6 +225,15 @@ def _display_name(role: str) -> str:
         "supervisor": "Agent 0",
         "user_agent": "UserAgent",
     }.get(role, role)
+
+
+def _apply_tool_allowlist(registry, profile: dict | None):
+    if not profile or not profile.get("tool_allowlist"):
+        return registry
+    allowed = set(profile["tool_allowlist"])
+    registry.tools = {name: tool for name, tool in registry.tools.items() if name in allowed}
+    registry.metadata = {name: meta for name, meta in registry.metadata.items() if name in allowed or meta.get("_mcp_server")}
+    return registry
 
 
 def _select_batch(ready: list[ExecutionNode]) -> list[ExecutionNode]:

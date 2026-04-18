@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable
 
 from xoai.metrics import metrics
+from xoai.config import settings
 
 logger = logging.getLogger("xoai.jobs")
 
@@ -27,11 +29,15 @@ class JobManager:
         *,
         max_attempts: int = 3,
         run_after: datetime | None = None,
+        jitter_seconds: int = 0,
     ) -> str:
         from xoai.db.mongo import get_db
 
         db = get_db()
         now = datetime.now(timezone.utc)
+        effective_run_after = run_after or now
+        if jitter_seconds > 0:
+            effective_run_after = effective_run_after + timedelta(seconds=random.randint(0, jitter_seconds))
         doc = {
             "type": job_type,
             "status": "queued",
@@ -41,7 +47,7 @@ class JobManager:
             "last_error": None,
             "created_at": now,
             "updated_at": now,
-            "run_after": run_after or now,
+            "run_after": effective_run_after,
         }
         result = await db.jobs.insert_one(doc)
         return str(result.inserted_id)
@@ -102,6 +108,10 @@ class JobManager:
             {"$set": {"status": "running", "updated_at": datetime.now(timezone.utc)}, "$inc": {"attempts": 1}},
         )
 
+        jitter = int(job.get("payload", {}).get("startup_jitter_seconds") or 0)
+        if jitter:
+            await asyncio.sleep(random.uniform(0, min(jitter, settings.restart_jitter_seconds)))
+
         try:
             await handler(job["payload"])
         except Exception as exc:
@@ -132,3 +142,6 @@ class JobManager:
 
 job_manager = JobManager()
 
+
+async def process_due_jobs_once(limit: int = 25) -> None:
+    await job_manager.process_pending(limit=limit)

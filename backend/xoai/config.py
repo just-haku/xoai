@@ -30,9 +30,17 @@ class Settings(BaseSettings):
     )
     enable_cors: bool = False
     admin_workspace_path: str | None = None
-    max_upload_bytes: int = 10 * 1024 * 1024
+    max_upload_bytes: int = 5 * 1024 * 1024 * 1024
     max_avatar_bytes: int = 2 * 1024 * 1024
     max_editor_bytes: int = 5 * 1024 * 1024
+    upload_chunk_bytes: int = 8 * 1024 * 1024
+    upload_session_ttl_hours: int = 24
+    transient_file_ttl_days: int = 7
+    gc_batch_size: int = 200
+    restart_jitter_seconds: int = 20
+    query_tool_failure_threshold: int = 10
+    query_max_tool_steps: int = 16
+    qdrant_url: str = "http://xoai-qdrant:6333"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -1,8 +1,11 @@
 """Workspace file browser API."""
 
 import base64
+import hashlib
 import mimetypes
 import os
+import uuid
+from datetime import datetime, timedelta, timezone
 from html import escape
 from pathlib import PurePath
 
@@ -14,14 +17,19 @@ from xoai.auth.dependencies import get_current_user
 from xoai.admin.service import get_setting
 from xoai.workspace.service import (
     atomic_write_bytes,
+    atomic_replace_file,
+    cleanup_upload_session_files,
     enforce_file_size_limit,
     ensure_not_workspace_root,
     get_admin_workspace,
     get_user_workspace,
+    merge_upload_chunks,
     resolve_safe_path,
     check_quota,
+    upload_chunk_path,
 )
 from xoai.config import settings
+from xoai.storage_gc import track_storage_artifact, untrack_storage_artifact
 
 router = APIRouter()
 
@@ -31,6 +39,22 @@ class SaveTextFilePayload(BaseModel):
 
     path: str = Field(min_length=1, max_length=512)
     content: str = Field(max_length=5 * 1024 * 1024)
+
+
+class UploadSessionInitPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(default="", max_length=512)
+    filename: str = Field(min_length=1, max_length=255)
+    total_size: int = Field(default=0, ge=0)
+    total_chunks: int = Field(default=1, ge=1)
+    mime_type: str | None = None
+
+
+class UploadSessionCompletePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sha256: str | None = None
 
 
 def _resolve_or_403(user_id: str, path: str, workspace: str | None = None) -> str:
@@ -152,24 +176,175 @@ async def upload_file(
     user: dict = Depends(get_current_user),
 ):
     """Upload a file to user's workspace (quota enforced)."""
-    content = await file.read()
     workspace = await get_effective_workspace(user)
-    try:
-        enforce_file_size_limit(len(content), settings.max_upload_bytes, "Upload exceeds size limit")
-    except ValueError as exc:
-        raise HTTPException(413, str(exc)) from exc
-
-    if user.get("role") != "admin" and not await check_quota(user["id"], len(content), workspace):
-        raise HTTPException(413, "Storage quota exceeded.")
-
     safe_dir = _resolve_or_403(user["id"], path, workspace)
     os.makedirs(safe_dir, exist_ok=True)
     safe_name = _safe_upload_filename(file.filename)
     dest = _resolve_or_403(user["id"], os.path.join(path, safe_name), workspace)
+    temp_path = f"{dest}.streaming.{uuid.uuid4().hex}"
+    size = 0
+    hasher = hashlib.sha256()
+    with open(temp_path, "wb") as handle:
+        while True:
+            chunk = await file.read(settings.upload_chunk_bytes)
+            if not chunk:
+                break
+            size += len(chunk)
+            try:
+                enforce_file_size_limit(size, settings.max_upload_bytes, "Upload exceeds size limit")
+            except ValueError as exc:
+                os.remove(temp_path)
+                raise HTTPException(413, str(exc)) from exc
+            hasher.update(chunk)
+            handle.write(chunk)
 
-    await atomic_write_bytes(user["id"], dest, content)
+    if user.get("role") != "admin" and not await check_quota(user["id"], size, workspace):
+        os.remove(temp_path)
+        raise HTTPException(413, "Storage quota exceeded.")
+    await atomic_replace_file(user["id"], dest, temp_path)
 
-    return {"message": "Uploaded", "path": os.path.join(path, safe_name)}
+    return {"message": "Uploaded", "path": os.path.join(path, safe_name), "sha256": hasher.hexdigest(), "size": size}
+
+
+@router.post("/files/upload/init")
+async def init_chunked_upload(payload: UploadSessionInitPayload, user: dict = Depends(get_current_user)):
+    workspace = await get_effective_workspace(user)
+    safe_dir = _resolve_or_403(user["id"], payload.path, workspace)
+    os.makedirs(safe_dir, exist_ok=True)
+    safe_name = _safe_upload_filename(payload.filename)
+    upload_id = uuid.uuid4().hex
+    upload_path = _resolve_or_403(user["id"], os.path.join(payload.path, safe_name), workspace)
+    from xoai.db.mongo import get_db
+
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    await db.upload_sessions.insert_one(
+        {
+            "upload_id": upload_id,
+            "user_id": user["id"],
+            "path": payload.path,
+            "filename": safe_name,
+            "upload_path": upload_path,
+            "chunk_size": settings.upload_chunk_bytes,
+            "total_size": payload.total_size,
+            "total_chunks": payload.total_chunks,
+            "received_chunks": [],
+            "received_bytes": 0,
+            "status": "pending",
+            "mime_type": payload.mime_type,
+            "sha256": None,
+            "expires_at": now + timedelta(hours=settings.upload_session_ttl_hours),
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+    session_dir = os.path.dirname(upload_chunk_path(user["id"], upload_id, 0))
+    await track_storage_artifact(
+        user_id=user["id"],
+        path=session_dir,
+        artifact_type="upload_session",
+        retention_class="upload_chunk",
+    )
+    return {"upload_id": upload_id, "chunk_size": settings.upload_chunk_bytes, "filename": safe_name, "total_chunks": payload.total_chunks}
+
+
+@router.put("/files/upload/{upload_id}/chunk/{chunk_index}")
+async def append_upload_chunk(
+    upload_id: str,
+    chunk_index: int,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    from xoai.db.mongo import get_db
+    db = get_db()
+    session = await db.upload_sessions.find_one({"upload_id": upload_id, "user_id": user["id"]})
+    if not session:
+        raise HTTPException(404, "Upload session not found")
+    if chunk_index < 0 or chunk_index >= int(session.get("total_chunks", 0) or 0):
+        raise HTTPException(400, "Invalid chunk index")
+
+    part_path = upload_chunk_path(user["id"], upload_id, chunk_index)
+    size = 0
+    with open(part_path, "wb") as handle:
+        while True:
+            chunk = await file.read(settings.upload_chunk_bytes)
+            if not chunk:
+                break
+            size += len(chunk)
+            handle.write(chunk)
+
+    if user.get("role") != "admin" and not await check_quota(user["id"], size, await get_effective_workspace(user)):
+        os.remove(part_path)
+        raise HTTPException(413, "Storage quota exceeded.")
+
+    received = sorted(set(list(session.get("received_chunks", [])) + [chunk_index]))
+    await db.upload_sessions.update_one(
+        {"_id": session["_id"]},
+        {
+            "$set": {
+                "received_chunks": received,
+                "received_bytes": int(session.get("received_bytes", 0)) + size,
+                "updated_at": datetime.now(timezone.utc),
+                "status": "uploading",
+            }
+        },
+    )
+    return {"upload_id": upload_id, "chunk_index": chunk_index, "size": size}
+
+
+@router.post("/files/upload/{upload_id}/complete")
+async def complete_chunked_upload(upload_id: str, payload: UploadSessionCompletePayload, user: dict = Depends(get_current_user)):
+    from xoai.db.mongo import get_db
+    db = get_db()
+    session = await db.upload_sessions.find_one({"upload_id": upload_id, "user_id": user["id"]})
+    if not session:
+        raise HTTPException(404, "Upload session not found")
+    total_chunks = int(session.get("total_chunks", 0))
+    received_chunks = list(session.get("received_chunks", []))
+    if len(received_chunks) != total_chunks:
+        raise HTTPException(409, "Upload session is incomplete")
+
+    total_bytes, digest, temp_path = merge_upload_chunks(user["id"], upload_id, total_chunks, session["upload_path"])
+    if payload.sha256 and payload.sha256 != digest:
+        os.remove(temp_path)
+        raise HTTPException(409, "Upload checksum mismatch")
+    try:
+        enforce_file_size_limit(total_bytes, settings.max_upload_bytes, "Upload exceeds size limit")
+    except ValueError as exc:
+        os.remove(temp_path)
+        raise HTTPException(413, str(exc)) from exc
+
+    await atomic_replace_file(user["id"], session["upload_path"], temp_path)
+    cleanup_upload_session_files(user["id"], upload_id)
+    await untrack_storage_artifact(user["id"], os.path.dirname(upload_chunk_path(user["id"], upload_id, 0)))
+    await db.upload_sessions.update_one(
+        {"_id": session["_id"]},
+        {"$set": {"status": "completed", "sha256": digest, "updated_at": datetime.now(timezone.utc)}},
+    )
+    return {
+        "message": "Uploaded",
+        "path": os.path.join(session["path"], session["filename"]).strip("/"),
+        "sha256": digest,
+        "size": total_bytes,
+    }
+
+
+@router.delete("/files/upload/{upload_id}")
+async def abort_chunked_upload(upload_id: str, user: dict = Depends(get_current_user)):
+    from xoai.db.mongo import get_db
+    from datetime import datetime, timezone
+
+    db = get_db()
+    session = await db.upload_sessions.find_one({"upload_id": upload_id, "user_id": user["id"]})
+    if not session:
+        raise HTTPException(404, "Upload session not found")
+    cleanup_upload_session_files(user["id"], upload_id)
+    await untrack_storage_artifact(user["id"], os.path.dirname(upload_chunk_path(user["id"], upload_id, 0)))
+    await db.upload_sessions.update_one(
+        {"_id": session["_id"]},
+        {"$set": {"status": "aborted", "updated_at": datetime.now(timezone.utc)}},
+    )
+    return {"status": "aborted", "upload_id": upload_id}
 
 
 @router.delete("/files")
