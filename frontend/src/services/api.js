@@ -9,8 +9,10 @@ const parseErrorResponse = async (res) => {
     throw new Error(error.detail || 'Request failed')
 }
 
+let refreshingPromise = null
+
 export const api = {
-    async request(endpoint, options = {}) {
+    async request(endpoint, options = {}, isRetry = false) {
         const headers = { ...options.headers }
         
         // Only set Content-Type if not already set and body is not FormData
@@ -25,6 +27,50 @@ export const api = {
             ...options,
             headers,
         })
+
+        if (res.status === 401 && !isRetry) {
+            const { getRefreshToken, setPrimaryToken, setRefreshToken, clearActiveSession } = await import('./session')
+            const refreshToken = getRefreshToken()
+            
+            if (refreshToken) {
+                try {
+                    // Handle concurrent refresh attempts
+                    if (!refreshingPromise) {
+                        refreshingPromise = (async () => {
+                            const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ refresh_token: refreshToken })
+                            })
+                            if (!refreshRes.ok) throw new Error('Refresh failed')
+                            const data = await refreshRes.json()
+                            setPrimaryToken(data.access_token)
+                            setRefreshToken(data.refresh_token)
+                            return data.access_token
+                        })()
+                    }
+                    
+                    await refreshingPromise
+                    refreshingPromise = null
+                    
+                    // Retry original request with new token
+                    return api.request(endpoint, options, true)
+                } catch (err) {
+                    refreshingPromise = null
+                    clearActiveSession()
+                    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                        window.location.href = '/login'
+                    }
+                    throw new Error('Unauthorized')
+                }
+            } else {
+                clearActiveSession()
+                if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                    window.location.href = '/login'
+                }
+                throw new Error('Unauthorized')
+            }
+        }
 
         if (!res.ok) {
             await parseErrorResponse(res)

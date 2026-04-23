@@ -30,7 +30,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
-import { setPrimaryToken } from '../services/session'
+import { setPrimaryToken, setRefreshToken } from '../services/session'
 
 const identifier = ref('')
 const password = ref('')
@@ -44,6 +44,7 @@ const handleLogin = async () => {
   try {
     const data = await api.auth.login(identifier.value, password.value)
     setPrimaryToken(data.access_token)
+    setRefreshToken(data.refresh_token)
     router.push('/chat')
   } catch (e) {
     error.value = e.message

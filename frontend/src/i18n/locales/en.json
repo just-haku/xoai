@@ -375,7 +375,7 @@
         "command": "Command",
         "command_placeholder": "npx",
         "args": "Args (space separated)",
-        "args_placeholder": "-y @modelcontextprotocol/server-filesystem /workspace",
+        "args_placeholder": "-y {'@'}modelcontextprotocol/server-filesystem /workspace",
         "env_json": "Env JSON (optional)",
         "env_placeholder": "{\"NODE_ENV\":\"production\"}",
         "add": "Add MCP Server",

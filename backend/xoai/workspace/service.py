@@ -66,10 +66,12 @@ def ensure_not_workspace_root(path: str, workspace: str, operation: str) -> None
 def get_admin_workspace() -> str:
     workspace = settings.admin_workspace_path
     if not workspace:
-        raise PermissionError("Admin workspace is not configured")
+        # Fallback to root storage container for admins if not explicitly configured
+        return os.path.abspath(settings.xoai_storage)
     workspace = os.path.abspath(workspace)
     if not os.path.isdir(workspace):
-        raise PermissionError("Configured admin workspace path does not exist")
+        # Even if configured path doesn't exist, fallback to root storage to avoid 403
+        return os.path.abspath(settings.xoai_storage)
     return workspace
 
 

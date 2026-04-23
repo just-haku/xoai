@@ -115,10 +115,10 @@ case "${1:-help}" in
     compose down
     ;;
   logs)
-    compose logs -f "${2:-}"
+    compose logs -f ${2:-}
     ;;
   restart)
-    compose restart "${2:-}"
+    compose restart ${2:-}
     ;;
   shell)
     docker exec -it xoai-backend bash
@@ -158,16 +158,16 @@ case "${1:-help}" in
     ensure_local_venv
     "$VENV_PYTHON" - <<'PY'
 import asyncio
-from xoai.db.mongo import connect_to_mongo, close_mongo_connection
+from xoai.db.mongo import connect_mongo, close_mongo
 from xoai.prompts.service import seed_prompt_versions_from_disk
 
 async def main():
-    await connect_to_mongo()
+    await connect_mongo()
     try:
         created = await seed_prompt_versions_from_disk()
         print(f"Seeded {created} prompt versions")
     finally:
-        await close_mongo_connection()
+        await close_mongo()
 
 asyncio.run(main())
 PY
@@ -179,16 +179,16 @@ PY
     ensure_local_venv
     "$VENV_PYTHON" - <<'PY'
 import asyncio
-from xoai.db.mongo import connect_to_mongo, close_mongo_connection
+from xoai.db.mongo import connect_mongo, close_mongo
 from xoai.jobs import process_due_jobs_once
 
 async def main():
-    await connect_to_mongo()
+    await connect_mongo()
     try:
         await process_due_jobs_once()
         print("Processed due jobs once")
     finally:
-        await close_mongo_connection()
+        await close_mongo()
 
 asyncio.run(main())
 PY
@@ -201,16 +201,16 @@ PY
     fi
     "$VENV_PYTHON" - <<PY
 import asyncio
-from xoai.db.mongo import connect_to_mongo, close_mongo_connection
+from xoai.db.mongo import connect_mongo, close_mongo
 from xoai.storage_gc import run_storage_gc
 
 async def main():
-    await connect_to_mongo()
+    await connect_mongo()
     try:
         result = await run_storage_gc(dry_run=${DRY_RUN})
         print(result)
     finally:
-        await close_mongo_connection()
+        await close_mongo()
 
 asyncio.run(main())
 PY

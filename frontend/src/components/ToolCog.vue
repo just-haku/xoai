@@ -1,7 +1,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useUIStore } from '../stores/ui'
 
+const { t } = useI18n()
 const uiStore = useUIStore()
 
 // Requirement: Default models are none. Only fetch when keys are input.
@@ -41,7 +43,7 @@ const hasApiKey = computed(() => {
 
 const toggleMenu = (agent) => {
   if (!hasApiKey.value) {
-    uiStore.notify(this.$t('chat.missing_key'), 'warning')
+    uiStore.notify(t('chat.missing_key'), 'warning')
     return
   }
   // Close others
@@ -54,7 +56,7 @@ const selectModel = (agent, provider, model) => {
   agent.model = model
   agent.open = false
   
-  uiStore.notify(this.$t('chat.agent_using', { agent: agent.shortName, model: model, provider: provider }), 'info')
+  uiStore.notify(t('chat.agent_using', { agent: agent.shortName, model: model, provider: provider }), 'info')
 }
 
 onMounted(() => {
@@ -82,8 +84,8 @@ onMounted(() => {
         <div class="agent-info">
           <span class="agent-label">{{ agent.shortName }}</span>
           <span class="active-model">
-            <template v-if="loadingModels">{{ $t('chat.loading_models') }}</template>
-            <template v-else>{{ hasApiKey ? (agent.model || $t('chat.model_none')) : $t('chat.locked') }}</template>
+            <template v-if="loadingModels">{{ t('chat.loading_models') }}</template>
+            <template v-else>{{ hasApiKey ? (agent.model || t('chat.model_none')) : t('chat.locked') }}</template>
           </span>
         </div>
 

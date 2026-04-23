@@ -172,11 +172,32 @@
             </div>
             <div class="input-group">
               <label>Provider</label>
-              <input v-model="agentProfileForm.provider" placeholder="gemini" />
+              <CSelect v-model="agentProfileForm.provider" :options="providerOptions" />
             </div>
             <div class="input-group">
-              <label>Model</label>
-              <input v-model="agentProfileForm.model" placeholder="gemini-1.5-flash" />
+              <div class="label-with-action">
+                <label>Model</label>
+                <button 
+                  v-if="agentProfileForm.key"
+                  class="btn-text-action" 
+                  @click="fetchProfileModels"
+                  :disabled="agentProfileForm.fetchingModels"
+                >
+                  {{ agentProfileForm.fetchingModels ? t('admin.dashboard.agents.fetching') : t('admin.dashboard.agents.fetch_models') }}
+                </button>
+              </div>
+              <CSelect 
+                v-if="agentProfileForm.availableModels.length > 0"
+                v-model="agentProfileForm.model" 
+                :options="agentProfileForm.availableModels"
+              />
+              <CSelect 
+                v-else
+                v-model="agentProfileForm.model" 
+                :options="commonModels"
+                :placeholder="'gemini-1.5-flash'"
+                allow-create
+              />
             </div>
             <div class="input-group">
               <label>Network Mode</label>
@@ -852,7 +873,17 @@ const agentProfileForm = reactive({
   risk_policy: { network_mode: 'network_disabled' },
   enabled: true,
   max_concurrency: 1,
+  fetchingModels: false,
+  availableModels: [],
 })
+const commonModels = [
+  { label: 'gemini-1.5-pro', value: 'gemini-1.5-pro' },
+  { label: 'gemini-1.5-flash', value: 'gemini-1.5-flash' },
+  { label: 'gpt-4o', value: 'gpt-4o' },
+  { label: 'gpt-4-turbo', value: 'gpt-4-turbo' },
+  { label: 'claude-3-opus', value: 'claude-3-opus' },
+  { label: 'claude-3-sonnet', value: 'claude-3-sonnet' }
+]
 const scheduledTasks = ref([])
 const schedulerEditingId = ref(null)
 const schedulerForm = reactive({
@@ -1092,6 +1123,33 @@ const fetchAgentModels = async (agent) => {
     uiStore.notify(t('admin.dashboard.notifications.fetch_failed', { error: err.message }), 'danger')
   } finally {
     agent.fetching = false
+  }
+}
+
+const fetchProfileModels = async () => {
+  if (!agentProfileForm.key) {
+    uiStore.notify(t('admin.dashboard.notifications.api_key_required'), 'warning')
+    return
+  }
+  
+  agentProfileForm.fetchingModels = true
+  try {
+    const resp = await api.admin.fetchModels({
+      provider: agentProfileForm.provider,
+      key: agentProfileForm.key,
+      base_url: agentProfileForm.base_url
+    })
+    
+    if (resp.models && resp.models.length > 0) {
+      agentProfileForm.availableModels = resp.models.map(m => ({ label: m, value: m }))
+      uiStore.notify(t('admin.dashboard.notifications.models_fetched', { count: resp.models.length, agent: agentProfileForm.agent_key || 'PROFILE' }), 'success')
+    } else {
+      uiStore.notify(t('admin.dashboard.notifications.no_models'), 'info')
+    }
+  } catch (err) {
+    uiStore.notify(t('admin.dashboard.notifications.fetch_failed', { error: err.message }), 'danger')
+  } finally {
+    agentProfileForm.fetchingModels = false
   }
 }
 

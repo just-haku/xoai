@@ -163,6 +163,8 @@ const isCropping = ref(false)
 const cropSrc = ref('')
 const userAvatar = ref(localStorage.getItem('xoai_avatar') || DEFAULT_AVATAR)
 const user = ref({ name: '', email: '', role: 'user' })
+const loading = ref(false)
+const loaded = ref(false)
 
 const tabs = [
   { id: 'profile', label: 'settings.profile.title' },
@@ -195,13 +197,24 @@ const quotaPercent = ref(12)
 const quotaFormatted = computed(() => '1.8GB')
 
 const fetchUserData = async () => {
+  if (loading.value) return
+  loading.value = true
   try {
     const data = await api.auth.me()
     user.value = data
+    loaded.value = true
   } catch (err) {
     console.error('Failed to fetch user data:', err)
+  } finally {
+    loading.value = false
   }
 }
+
+watch(() => props.show, (newVal) => {
+  if (newVal && !loaded.value) {
+    fetchUserData()
+  }
+})
 
 const saveChanges = async () => {
   uiStore.setScale(draft.scale)
@@ -263,7 +276,7 @@ const handleKey = (e) => { if (e.key === 'Escape') emit('close') }
 
 onMounted(() => { 
   window.addEventListener('keydown', handleKey)
-  fetchUserData()
+  if (props.show) fetchUserData()
 })
 onUnmounted(() => { 
   window.removeEventListener('keydown', handleKey)

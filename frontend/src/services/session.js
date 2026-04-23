@@ -1,4 +1,5 @@
 const PRIMARY_TOKEN_KEY = 'xoai_token'
+const REFRESH_TOKEN_KEY = 'xoai_refresh_token'
 const PROXY_SESSION_KEY = 'xoai_proxy_session'
 const GOD_MODE_BRIDGE_CHANNEL = 'xoai_god_mode_bridge'
 let bridgeChannel = null
@@ -38,6 +39,21 @@ export const clearPrimaryToken = () => {
   window.localStorage.removeItem(PRIMARY_TOKEN_KEY)
 }
 
+export const getRefreshToken = () => {
+  if (!canUseBrowserStorage()) return null
+  return window.localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+export const setRefreshToken = (token) => {
+  if (!canUseBrowserStorage()) return
+  window.localStorage.setItem(REFRESH_TOKEN_KEY, token)
+}
+
+export const clearRefreshToken = () => {
+  if (!canUseBrowserStorage()) return
+  window.localStorage.removeItem(REFRESH_TOKEN_KEY)
+}
+
 export const getProxySession = () => {
   if (!canUseBrowserStorage()) return null
   const payload = parseStoredJson(window.sessionStorage, PROXY_SESSION_KEY)
@@ -70,6 +86,7 @@ export const clearActiveSession = () => {
     return
   }
   clearPrimaryToken()
+  clearRefreshToken()
 }
 
 export const hasPendingGodModeHandoff = (routeLike) => {

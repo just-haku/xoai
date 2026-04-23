@@ -55,7 +55,17 @@ const startDrag = (e) => {
     if (!isDragging) return
     const cX = ev.type.includes('touch') ? ev.touches[0].clientX : ev.clientX
     const cY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY
-    offset.value = { x: cX - startCoords.x, y: cY - startCoords.y }
+    
+    // Calculate new offset
+    let nextX = cX - startCoords.x
+    let nextY = cY - startCoords.y
+
+    // Simple bounds check: keep center within the box
+    const limit = 200 * zoom.value
+    nextX = Math.max(-limit, Math.min(limit, nextX))
+    nextY = Math.max(-limit, Math.min(limit, nextY))
+
+    offset.value = { x: nextX, y: nextY }
   }
   
   const onEnd = () => {
@@ -95,6 +105,8 @@ const confirm = () => {
   position: relative; width: 100%; aspect-ratio: 1;
   background: #000; border-radius: 12px; overflow: hidden;
   cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 .crop-area:active { cursor: grabbing; }
 
@@ -102,6 +114,9 @@ const confirm = () => {
   position: absolute; top: 50%; left: 50%;
   max-width: none; width: 100%; transition: none;
   transform-origin: center;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .crop-mask {

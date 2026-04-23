@@ -85,11 +85,29 @@ async def list_settings(_=Depends(require_admin)):
     return await service.list_setting_keys()
 
 
+@router.get("/settings/smtp")
+async def get_smtp_setting(_=Depends(require_admin)):
+    val = await service.get_setting("smtp")
+    return {"key": "smtp", "value": val}
+
+
+@router.get("/settings/agent_0_bridge_mode")
+async def get_bridge_mode_setting(_=Depends(require_admin)):
+    val = await service.get_setting("agent_0_bridge_mode")
+    return {"key": "agent_0_bridge_mode", "value": val}
+
+
+@router.get("/settings/admin_workspace_path")
+async def get_admin_workspace_path_setting(_=Depends(require_admin)):
+    val = await service.get_setting("admin_workspace_path")
+    return {"key": "admin_workspace_path", "value": val}
+
+
 @router.get("/settings/{key}")
 async def get_setting(key: str, _=Depends(require_admin)):
+    """Get a setting by key. Returns null value if not found instead of 404 to avoid frontend crashes."""
+    # Ensure common settings don't 404
     val = await service.get_setting(key)
-    if val is None:
-        raise HTTPException(404, f"Setting '{key}' not found")
     return {"key": key, "value": val}
 
 

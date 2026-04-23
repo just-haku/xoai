@@ -320,6 +320,54 @@ const openTicketing = () => {
   uiStore.showSupport = true
 }
 
+const chatContextMenu = ref({ show: false, x: 0, y: 0, chatId: null })
+
+const showChatContextMenu = (e, chatId) => {
+  chatContextMenu.value = {
+    show: true,
+    x: e.clientX,
+    y: e.clientY,
+    chatId
+  }
+}
+
+const handleRenameChat = async () => {
+  const chatId = chatContextMenu.value.chatId
+  const chat = chatStore.conversations.find(c => c.id === chatId)
+  if (!chat) return
+  
+  const newTitle = await uiStore.prompt(t('chat.rename'), t('chat.default_title'), chat.title)
+  if (newTitle) {
+    chatStore.setChatTitle(chatId, newTitle)
+  }
+  chatContextMenu.value.show = false
+}
+
+const handleShareChat = () => {
+  const chatId = chatContextMenu.value.chatId
+  // Mock share: copy link to clipboard or show fake URL
+  const dummyUrl = `${window.location.origin}/chat/${chatId}/shared`
+  navigator.clipboard.writeText(dummyUrl)
+  uiStore.notify(t('workspace.notifications.download_failed', { error: 'Link copied to clipboard (Mock)' }), 'info')
+  chatContextMenu.value.show = false
+}
+
+const handleHideChat = () => {
+  const chatId = chatContextMenu.value.chatId
+  // For now "Hide" will just be a transient frontend filter or we just treat it as archive
+  uiStore.notify(`Chat ${chatId} hidden (Mock)`, 'info')
+  chatContextMenu.value.show = false
+}
+
+const handleDeleteChat = async () => {
+  const chatId = chatContextMenu.value.chatId
+  const ok = await uiStore.confirm(t('chat.trash'), t('workspace.context.trash') + '?')
+  if (ok) {
+    chatStore.deleteChat(chatId)
+  }
+  chatContextMenu.value.show = false
+}
+
 const desktopMenu = ref({ show: false, x: 0, y: 0 })
 
 const showDesktopMenu = (e) => {
@@ -345,6 +393,7 @@ onMounted(() => {
   window.addEventListener('click', () => {
     showQuickSettings.value = false
     desktopMenu.value.show = false
+    chatContextMenu.value.show = false
   })
 })
 </script>
@@ -355,7 +404,7 @@ onMounted(() => {
     <aside class="sidebar glass-panel">
       <div class="sidebar-header">
         <div class="brand">XO<span class="mango-text">AI</span></div>
-        <button class="new-chat-btn" :disabled="isGodMode" @click="!isGodMode && chatStore.newChat?.()" :title="$t('chat.new_chat')">
+        <button class="new-chat-btn" :disabled="isGodMode" @click="!isGodMode && chatStore.newChat?.()" :title="t('chat.new_chat')">
           <svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
         </button>
       </div>
@@ -363,11 +412,11 @@ onMounted(() => {
       <div class="sidebar-search">
         <div class="search-input-wrapper">
           <svg class="search-icon" viewBox="0 0 24 24"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
-          <input v-model="searchQuery" :placeholder="$t('chat.search')" />
+          <input v-model="searchQuery" :placeholder="t('chat.search')" />
         </div>
       </div>
 
-      <div class="sidebar-nav-label">{{ $t(sidebarLabel) }}</div>
+      <div class="sidebar-nav-label">{{ t(sidebarLabel) }}</div>
 
       <div class="conversation-list scrollable">
         <!-- Pinned Omni-Channel -->
@@ -383,9 +432,35 @@ onMounted(() => {
              :key="chat.id" 
              class="chat-item"
              :class="{ active: chatStore.activeConversationId === chat.id }"
-             @click="chatStore.loadChat(chat.id)">
+             @click="chatStore.loadChat(chat.id)"
+             @contextmenu.prevent="showChatContextMenu($event, chat.id)">
           <span class="chat-title">{{ chat.title || $t('chat.default_title') }}</span>
         </div>
+
+        <!-- Chat Item Context Menu -->
+        <transition name="menu-pop">
+          <div v-if="chatContextMenu.show" 
+               class="desktop-menu glass-panel shadow-premium" 
+               :style="{ top: chatContextMenu.y + 'px', left: chatContextMenu.x + 'px' }">
+            <button class="context-item" @click="handleRenameChat">
+               <svg viewBox="0 0 24 24" class="menu-icon"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/></svg>
+               {{ $t('chat.rename') }}
+            </button>
+            <button class="context-item" @click="handleShareChat">
+               <svg viewBox="0 0 24 24" class="menu-icon"><path d="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z"/></svg>
+               {{ $t('workspace.context.share') }}
+            </button>
+            <button class="context-item" @click="handleHideChat">
+               <svg viewBox="0 0 24 24" class="menu-icon"><path d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z"/></svg>
+               {{ $t('workspace.hide_chat') }}
+            </button>
+            <div class="menu-divider"></div>
+            <button class="context-item dangerous" @click="handleDeleteChat">
+               <svg viewBox="0 0 24 24" class="menu-icon"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19V4M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
+               {{ $t('chat.trash') }}
+            </button>
+          </div>
+        </transition>
       </div>
 
       <div class="sidebar-footer-grid">
@@ -548,28 +623,28 @@ onMounted(() => {
                 </div>
              </div>
           </footer>
-          <div v-if="uiStore.windows.chat.floating" class="resizer" @mousedown="startResize('chat', $event)"></div>
+          <div v-if="uiStore.windows.chat?.floating" class="resizer" @mousedown="startResize('chat', $event)"></div>
         </div>
 
         <!-- Workspace Window -->
-        <div v-if="!uiStore.windows.workspace.minimized" 
+        <div v-if="!uiStore.windows.workspace?.minimized" 
              class="window-frame ws-win"
-             :class="{ floating: uiStore.windows.workspace.floating }"
+             :class="{ floating: uiStore.windows.workspace?.floating }"
              @click.stop
              @contextmenu.stop
-             :style="uiStore.windows.workspace.floating ? { 
-               top: uiStore.windows.workspace.y + 'px', 
-               left: uiStore.windows.workspace.x + 'px',
-               width: uiStore.windows.workspace.w + 'px',
-               height: uiStore.windows.workspace.h + 'px',
-               zIndex: uiStore.windows.workspace.order
-             } : { order: uiStore.windows.workspace.order || 2 }">
+             :style="uiStore.windows.workspace?.floating ? { 
+               top: uiStore.windows.workspace?.y + 'px', 
+               left: uiStore.windows.workspace?.x + 'px',
+               width: uiStore.windows.workspace?.w + 'px',
+               height: uiStore.windows.workspace?.h + 'px',
+               zIndex: uiStore.windows.workspace?.order
+             } : { order: uiStore.windows.workspace?.order || 2 }">
           <div class="win-header" @mousedown="startDrag('workspace', $event)">
             <span class="win-title">
               {{ t('chat.view.workspace_quota', { quota: user.role === 'admin' ? t('chat.view.unlimited') : `${formatSize(user.quota_used_bytes || 0)} / 5 GB` }) }}
             </span>
             <div class="win-controls">
-              <button v-if="!uiStore.windows.workspace.floating" @click="undock('workspace')">
+              <button v-if="!uiStore.windows.workspace?.floating" @click="undock('workspace')">
                 <svg viewBox="0 0 24 24"><path d="M19,19H5V5H19V19M19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3Z"/></svg>
               </button>
               <button @click="minimize('workspace')">
@@ -580,25 +655,25 @@ onMounted(() => {
           <div class="ws-content" style="padding: 0; background: var(--bg-primary); height: 100%;">
             <WorkspaceDesktop @open-file="openFile" />
           </div>
-          <div v-if="uiStore.windows.workspace.floating" class="resizer" @mousedown="startResize('workspace', $event)"></div>
+          <div v-if="uiStore.windows.workspace?.floating" class="resizer" @mousedown="startResize('workspace', $event)"></div>
         </div>
 
       </div>
 
       <div class="min-tray">
-         <div v-if="uiStore.windows.chat.minimized" class="tray-item glass-panel" @click="restore('chat')">
+         <div v-if="uiStore.windows.chat?.minimized" class="tray-item glass-panel" @click="restore('chat')">
            <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z"/></svg>
            <span>{{ $t('nav.chat') }}</span>
          </div>
-         <div v-if="uiStore.windows.workspace.minimized" class="tray-item glass-panel" @click="restore('workspace')">
+         <div v-if="uiStore.windows.workspace?.minimized" class="tray-item glass-panel" @click="restore('workspace')">
            <svg viewBox="0 0 24 24"><path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,4H12L10,4Z"/></svg>
            <span>{{ $t('nav.workspace') }}</span>
          </div>
-         <div v-if="uiStore.windows.admin.minimized && user?.role === 'admin'" class="tray-item glass-panel" @click="restore('admin')">
+         <div v-if="uiStore.windows.admin?.minimized && user?.role === 'admin'" class="tray-item glass-panel" @click="restore('admin')">
            <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.77 3.77z"/></svg>
            <span>{{ $t('admin.title') }}</span>
          </div>
-         <div v-if="uiStore.windows.userSettings.minimized" class="tray-item glass-panel" @click="restore('userSettings')">
+         <div v-if="uiStore.windows.userSettings?.minimized" class="tray-item glass-panel" @click="restore('userSettings')">
            <svg viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.47,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.53,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.04 4.95,18.95L7.44,17.95C7.96,18.34 8.53,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.47,18.68 16.04,18.34 16.56,17.95L19.05,18.95C19.27,19.04 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" /></svg>
            <span>{{ $t('nav.settings') }}</span>
          </div>
@@ -881,14 +956,21 @@ body.dock-target .top-bar {
   border-radius: 12px; backdrop-filter: blur(20px);
 }
 .context-item {
-  width: 100%; display: block; text-align: left;
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
   padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
   color: var(--text-primary); cursor: pointer; transition: all 0.2s; background: transparent; border: none;
 }
 .context-item:hover {
-  background: var(--bg-tertiary);
+  background: rgba(255, 170, 0, 0.1);
   color: var(--mango-primary);
 }
+.context-item.dangerous:hover {
+  background: rgba(255, 0, 0, 0.1);
+  color: var(--danger);
+}
+.menu-icon { width: 16px; opacity: 0.7; }
+.menu-divider { height: 1px; background: var(--border-subtle); margin: 4px 8px; }
+.desktop-menu { min-width: 160px; }
 
 .virtual-message-list {
   position: relative;

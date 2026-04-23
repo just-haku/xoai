@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { api } from '../services/api'
 import { useUIStore } from '../stores/ui'
+import CSelect from './common/CSelect.vue'
 
 const props = defineProps({
   prompts: {
@@ -234,9 +235,7 @@ const rollbackToVersion = async (version) => {
     <div class="prompt-grid">
       <div class="input-group">
         <label>Prompt Family</label>
-        <select v-model="selectedRole">
-          <option v-for="role in roleOptions" :key="role" :value="role">{{ role }}</option>
-        </select>
+        <CSelect v-model="selectedRole" :options="roleOptions.map(r => ({ label: r, value: r }))" />
       </div>
       <div class="input-group">
         <label>Mutation Reason</label>

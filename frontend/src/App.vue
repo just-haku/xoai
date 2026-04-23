@@ -17,6 +17,9 @@ const router = useRouter()
 const { t } = useI18n()
 
 const isUnauthRoute = computed(() => {
+  // During initial mount or route transitions, route.name might be null.
+  // We should default to treating it as an unauth route to prevent 401 loops.
+  if (!route.name) return true
   return ['landing', 'login', 'register'].includes(route.name)
 })
 
@@ -50,19 +53,21 @@ watch(() => route.fullPath, async () => {
     </div>
     <router-view v-else />
     <QuickSettingsUnauth v-if="isUnauthRoute" />
-    <GlobalSettingsHub :show="uiStore.showSettings" @close="uiStore.showSettings = false" />
-    <SupportTicketModal :show="uiStore.showSupport" @close="uiStore.showSupport = false" />
-    <PortalNotice 
-      :visible="uiStore.notice.visible"
-      :type="uiStore.notice.type"
-      :title="uiStore.notice.title"
-      :message="uiStore.notice.message"
-      :requires-input="uiStore.notice.requiresInput"
-      :input-placeholder="uiStore.notice.inputPlaceholder"
-      :show-cancel="uiStore.notice.showCancel"
-      @close="uiStore.closeNotice"
-      @submit="uiStore.handleSubmit"
-    />
+    <template v-if="!isUnauthRoute && sessionStore.ready">
+      <GlobalSettingsHub v-if="uiStore.showSettings" :show="uiStore.showSettings" @close="uiStore.showSettings = false" />
+      <SupportTicketModal v-if="uiStore.showSupport" :show="uiStore.showSupport" @close="uiStore.showSupport = false" />
+      <PortalNotice 
+        :visible="uiStore.notice.visible"
+        :type="uiStore.notice.type"
+        :title="uiStore.notice.title"
+        :message="uiStore.notice.message"
+        :requires-input="uiStore.notice.requiresInput"
+        :input-placeholder="uiStore.notice.inputPlaceholder"
+        :show-cancel="uiStore.notice.showCancel"
+        @close="uiStore.closeNotice"
+        @submit="uiStore.handleSubmit"
+      />
+    </template>
   </div>
 </template>
 

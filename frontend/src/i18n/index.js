@@ -4,6 +4,7 @@ import vi from './locales/vi.json'
 
 const i18n = createI18n({
   legacy: false, // Use Composition API
+  globalInjection: true, // Allow $t in templates
   locale: localStorage.getItem('xoai_lang') || 'en',
   fallbackLocale: 'en',
   messages: {

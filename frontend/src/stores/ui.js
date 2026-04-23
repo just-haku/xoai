@@ -11,9 +11,16 @@ export const useUIStore = defineStore('ui', () => {
   const showSettings = ref(false)
   const showSupport = ref(false)
   const layout = ref(localStorage.getItem('xoai_layout') || 'chat-only') // 'chat-only', 'split'
-  const windows = ref(JSON.parse(localStorage.getItem('xoai_windows')) || {
+  const defaultWindows = {
     chat: { floating: false, minimized: false, x: 50, y: 50, w: 900, h: 600, order: 1 },
-    workspace: { floating: true, minimized: false, x: 100, y: 100, w: 320, h: 450, order: 2 }
+    workspace: { floating: true, minimized: false, x: 100, y: 100, w: 320, h: 450, order: 2 },
+    admin: { floating: true, minimized: true, x: 150, y: 150, w: 1000, h: 700, order: 3 },
+    userSettings: { floating: true, minimized: true, x: 200, y: 200, w: 600, h: 800, order: 4 }
+  }
+
+  const windows = ref({ 
+    ...defaultWindows, 
+    ...JSON.parse(localStorage.getItem('xoai_windows') || '{}') 
   })
 
   // Global Notifications (Top-Right)
@@ -159,10 +166,7 @@ export const useUIStore = defineStore('ui', () => {
   }
 
   const resetWindows = () => {
-    windows.value = {
-      chat: { floating: false, minimized: false, x: 50, y: 50, w: 900, h: 600, order: 1 },
-      workspace: { floating: true, minimized: false, x: 100, y: 100, w: 320, h: 450, order: 2 }
-    }
+    windows.value = { ...defaultWindows }
     layout.value = 'split'
     localStorage.setItem('xoai_windows', JSON.stringify(windows.value))
     localStorage.setItem('xoai_layout', 'split')

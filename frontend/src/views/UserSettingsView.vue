@@ -49,19 +49,25 @@
             <div class="hero-info">
               <div class="input-group">
                 <label>{{ t('settings.profile.name') }}</label>
-                <input v-model="profile.name" class="h1-input" :placeholder="t('settings.profile.name')" />
+                <div class="name-edit-wrap">
+                  <input v-model="profile.name" class="h1-input" :placeholder="t('settings.profile.name')" />
+                  <span class="username-tag">@{{ profile.username }}</span>
+                </div>
               </div>
               <div class="input-group email-verify-group">
                 <label>{{ t('settings.profile.email') }}</label>
                 <div class="email-control">
                   <input v-model="profile.email" class="p-input" :disabled="!isChangingEmail" />
-                  <button v-if="!isChangingEmail" class="btn-micro" @click="isChangingEmail = true">{{ t('userSettings.change') }}</button>
-                  <button v-if="isChangingEmail && !emailCodeSent" class="btn-micro success" @click="requestEmailCode">{{ t('userSettings.get_code') }}</button>
+                  <button v-if="!isChangingEmail" :disabled="profile.role === 'admin'" class="btn-micro" :class="{ 'btn-locked': profile.role === 'admin' }" @click="isChangingEmail = true">
+                    <span v-if="profile.role === 'admin'">{{ t('userSettings.system_managed') }}</span>
+                    <span v-else>{{ t('userSettings.change') }}</span>
+                  </button>
+                  <button v-if="isChangingEmail && !emailCodeSent" class="btn-micro btn-success" @click="requestEmailCode">{{ t('userSettings.get_code') }}</button>
                 </div>
                 <div v-if="emailCodeSent" class="verification-box mt-2">
                   <input v-model="emailCode" class="p-input code-input" :placeholder="t('userSettings.enter_code')" maxlength="6" />
-                  <button class="btn-micro success" @click="verifyEmailChange">{{ t('userSettings.verify_update') }}</button>
-                  <button class="btn-micro danger" @click="cancelEmailChange">{{ t('actions.cancel') }}</button>
+                  <button class="btn-micro btn-success" @click="verifyEmailChange">{{ t('userSettings.verify_update') }}</button>
+                  <button class="btn-micro btn-danger" @click="cancelEmailChange">{{ t('actions.cancel') }}</button>
                 </div>
               </div>
             </div>
@@ -281,7 +287,7 @@ const tabs = computed(() => [
 const currentTab = computed(() => tabs.value.find((tab) => tab.id === activeTab.value))
 
 // State
-const profile = reactive({ name: '', email: '', bio: '', avatar: null })
+const profile = reactive({ name: '', username: '', email: '', bio: '', avatar: null, role: 'user' })
 const security = reactive({ old_password: '', new_password: '', confirm_password: '' })
 const agent = reactive({ provider: 'gemini', key: '', model: '', fetching: false, availableModels: [] })
 const uiSettings = reactive({ 
@@ -336,9 +342,11 @@ const fetchUser = async () => {
     const data = await api.auth.me()
     Object.assign(profile, {
       name: data.name,
+      username: data.username,
       email: data.email,
       bio: data.bio || '',
-      avatar: data.avatar || null
+      avatar: data.avatar || null,
+      role: data.role || 'user'
     })
   } catch (err) {}
 }
@@ -638,16 +646,34 @@ onMounted(fetchUser)
 .h1-input {
   font-size: 2rem; font-weight: 900; background: transparent; border: none;
   border-bottom: 2px solid var(--border-subtle); color: var(--text-primary); width: 100%; outline: none;
-  padding: 8px 0;
+  padding: 8px 0; transition: border-color 0.3s;
 }
 .h1-input:focus { border-bottom-color: var(--mango-primary); }
+
+.name-edit-wrap { position: relative; }
+.username-tag {
+  position: absolute; right: 0; bottom: 12px; font-size: 14px; font-weight: 700;
+  color: var(--text-secondary); opacity: 0.5; pointer-events: none;
+}
 
 .email-control { display: flex; gap: 12px; align-items: center; }
 .verification-box { 
   display: flex; gap: 12px; align-items: center; padding: 16px; 
-  background: rgba(255, 170, 0, 0.05); border-radius: 12px; border: 1px dashed var(--mango-primary);
+  background: rgba(var(--mango-primary-rgb, 255, 170, 0), 0.05); border-radius: 12px; border: 1px dashed var(--mango-primary);
 }
 .code-input { width: 180px; text-align: center; letter-spacing: 4px; font-weight: 900; font-size: 1.2rem; }
+
+.btn-micro {
+  padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800;
+  text-transform: uppercase; border: 1px solid var(--border-strong);
+  background: var(--bg-tertiary); color: var(--text-primary); cursor: pointer;
+  transition: all 0.2s; white-space: nowrap;
+}
+.btn-micro:hover:not(:disabled) { background: var(--bg-hover); transform: translateY(-1px); }
+.btn-micro.btn-success { color: #00ff88; border-color: rgba(0, 255, 136, 0.2); }
+.btn-micro.btn-danger { color: #ff4d4d; border-color: rgba(255, 77, 77, 0.2); }
+.btn-micro.btn-locked { opacity: 0.5; cursor: not-allowed; border-color: transparent; background: transparent; color: var(--text-secondary); }
+.btn-micro:disabled { opacity: 0.5; pointer-events: none; }
 
 .input-group label {
   display: block; font-size: 11px; font-weight: 800; color: var(--mango-primary);
